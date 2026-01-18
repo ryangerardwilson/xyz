@@ -9,7 +9,7 @@
 ## 2. Core Design Principles
 
 - **Terminal-native UI** – pure `curses`; no GUI toolkits.
-- **Leader-driven ergonomics** – comma (`,`) is the leader (`,` then `m`/`a` to jump between views).
+- **Direct view toggling** – single-key `m` flips between agenda and month views; leader remains available for future chords.
 - **External editing via Vim** – pressing `i` dumps the selected event to JSON, opens `$EDITOR` (default `vim`), then re-imports the edited JSON.
 - **Thin entrypoint** – `main.py` must stay tiny.
 - **Central orchestrator** – `orchestrator.py` handles CLI parsing, curses lifecycle, NL CLI entry, and the between-view policy.
@@ -54,8 +54,7 @@ Natural-language assistants **are now in-scope** when using structured outputs/t
 ## 5. Implemented Feature Set (v0)
 
 1. **Views**
-   - `,a` Agenda view – chronological list with `hjkl` navigation and jump-to-today logic.
-   - `,m` Month view – grid with day selection, events pane, `Ctrl+h/l` month jumps, events focus.
+   - `m` toggles between Agenda and Month views, preserving Vim-style navigation and jump-to-today logic.
 
 2. **Navigation**
    - `hjkl` to move day/entry selection.
@@ -107,7 +106,7 @@ Natural-language assistants **are now in-scope** when using structured outputs/t
 ## 7. Interaction & Modes
 
 - **Normal mode**: default navigation state.
-- **Leader sequences**: `,` + `a/m` selects view; times out after ~1s.
+- **View toggle**: `m` flips between agenda and month instantly; leader remains for future sequences (e.g., `,n` for new).
 - **Insert/Edit (external)**: triggered by `i`, leaves curses, opens `$EDITOR`, returns with updated events.
 - **Delete pending state**: first `d` arms deletion, second `d` confirms.
 
@@ -120,7 +119,7 @@ Natural-language assistants **are now in-scope** when using structured outputs/t
 | `q` / `Q`      | global | Quit |
 | `?`            | global | Toggle help |
 | `t`            | global | Jump to today |
-| `,m` / `,a`    | global | Month / Agenda views |
+| `m`            | global | Toggle Month / Agenda views |
 | `i`            | view (item) | Edit/create via `$EDITOR` |
 | `dd`           | agenda + month events | Delete selected event |
 | `Ctrl+h` / `Ctrl+l` | month view | Previous / next month |

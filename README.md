@@ -33,7 +33,7 @@ If you’d rather run directly from the repo (handy for development or non-Linux
 ## Features
 
 - **Agenda + Month views** with Vim-style `hjkl` navigation
-- **Leader key (` , `)** to jump between views (` ,a ` agenda, ` ,m ` month)
+- **Single-key view toggle (`m`)** to flip between agenda and month views instantly
 - **External editing** (`i`) that opens the selected event as JSON in `$EDITOR` (default `vim`)
 - **Natural-language CLI** (e.g. `python main.py "show me today's events"`) with intents for creating, listing, and rescheduling events (absolute or relative time shifts)
 - **Quick delete** by double–tapping `d` (`dd`) in Agenda or the month’s event list
@@ -113,7 +113,7 @@ The executor validates OpenAI responses against JSON Schema and surfaces errors 
 | `q` / `Q`      | global | Quit |
 | `?`            | global | Toggle help overlay |
 | `t`            | global | Jump to today |
-| `,m` / `,a`    | global | Switch to Month / Agenda views |
+| `m`            | global | Toggle between Month / Agenda views |
 | `i`            | view (item) | Edit/create via `$EDITOR` |
 | `dd`           | agenda + month events | Delete selected event |
 | `Ctrl+h` / `Ctrl+l` | month view | Previous / next month |
