@@ -43,10 +43,11 @@ class MonthView:
 
         title = f"{calendar.month_name[selected_date.month]}, {selected_date.year}"
         stdscr.addnstr(
-            0, 0, title[: max(0, body_w - 1)], max(0, body_w - 1), curses.A_BOLD
+            0, 0, title[: max(0, body_w - 1)], max(0, body_w - 1), 0
         )
 
-        available_h = body_h - 1
+        content_top = 2  # blank line between title and grid
+        available_h = body_h - content_top
         if available_h <= 0:
             return
 
@@ -65,11 +66,12 @@ class MonthView:
             grid_rows = max(available_h - events_rows, 0)
 
         if grid_rows > 0:
-            self._draw_grid(stdscr, 1, 0, grid_rows, body_w, selected_date)
+            self._draw_grid(stdscr, content_top, 0, grid_rows, body_w, selected_date)
         if events_rows > 0:
+            events_start = content_top + grid_rows + 1  # blank line between grid and events
             self._draw_events_pane(
                 stdscr,
-                1 + grid_rows,
+                events_start,
                 0,
                 events_rows,
                 body_w,
@@ -117,7 +119,7 @@ class MonthView:
                 events_count = len(self.events_by_date.get(day, []))
                 show_suffix = events_count and cell_w >= 7
                 count_display = min(events_count, 99)
-                suffix = f" ({count_display})" if show_suffix else ""
+                suffix = f"({count_display})" if show_suffix else ""
                 text = f"{label}{suffix}"[:cell_w]
 
                 attr = 0
