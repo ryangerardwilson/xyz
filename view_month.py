@@ -51,7 +51,7 @@ class MonthView:
         if available_h <= 0:
             return
 
-        grid_needed_rows = self._grid_required_rows(selected_date)
+        grid_needed_rows = self._grid_required_rows(selected_date) + 1  # include header row
         min_events_rows = 3 if available_h >= 3 else available_h
 
         grid_rows = min(grid_needed_rows, max(available_h - min_events_rows, 0))
@@ -66,7 +66,15 @@ class MonthView:
             grid_rows = max(available_h - events_rows, 0)
 
         if grid_rows > 0:
-            self._draw_grid(stdscr, content_top, 0, grid_rows, body_w, selected_date)
+            self._draw_weekday_header(stdscr, content_top, 0, body_w)
+            self._draw_grid(
+                stdscr,
+                content_top + 1,
+                0,
+                grid_rows - 1,
+                body_w,
+                selected_date,
+            )
         if events_rows > 0:
             events_start = content_top + grid_rows + 1  # blank line between grid and events
             self._draw_events_pane(
@@ -85,6 +93,28 @@ class MonthView:
         year, month = selected_date.year, selected_date.month
         weeks = cal.monthdatescalendar(year, month)
         return len(weeks)
+
+    def _draw_weekday_header(
+        self,
+        stdscr: "curses.window",
+        y: int,
+        x: int,
+        w: int,
+    ) -> None:
+        weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        usable_w = w
+        if usable_w <= 0:
+            return
+        default_cell_w = 7
+        min_cell_w = 4
+        cell_w = default_cell_w
+        grid_w = cell_w * 7
+        if grid_w > w:
+            cell_w = max(min_cell_w, w // 7)
+        start_x = x
+        for idx, name in enumerate(weekdays):
+            col_x = start_x + idx * cell_w
+            stdscr.addnstr(y, col_x, name[:cell_w].ljust(cell_w), cell_w, curses.A_DIM)
 
     def _draw_grid(
         self,
@@ -109,10 +139,10 @@ class MonthView:
             grid_w = cell_w * 7
         grid_x = x
 
-        for row_idx, week in enumerate(weeks):
+        visible_weeks = weeks[:h]
+
+        for row_idx, week in enumerate(visible_weeks):
             row_y = y + row_idx
-            if row_y >= y + h:
-                break
             for col_idx, day in enumerate(week):
                 col_x = grid_x + col_idx * cell_w
                 label = f"{day.day:2d}"
