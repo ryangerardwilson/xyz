@@ -127,7 +127,7 @@ class Orchestrator:
                 ",a / ,m    agenda / month view",
                 "hjkl        navigate",
                 "Tab         toggle focus (month view)",
-                "i           grid: new event  /  events: edit selected",
+                "i           events: edit selected",
                 "",
                 "Edits open external editor on temp JSON",
                 "datetime format: YYYY-MM-DD HH:MM[:SS]",
@@ -186,8 +186,10 @@ class Orchestrator:
             if self.state.view == "agenda":
                 force_new = not self.state.events
                 return self._edit_or_create(stdscr, force_new=force_new)
-            else:  # month view
-                return self._handle_month_edit(stdscr)
+            elif self.state.view == "month" and self.state.month_focus == "events" and self._month_events_for_selected_date():
+                return self._edit_or_create(stdscr, force_new=False)
+            else:
+                return False
 
         # View-specific navigation
         if self.state.view == "agenda":
@@ -257,11 +259,13 @@ class Orchestrator:
                 self.state.month_event_index = 0
                 return True
             if ch == KEY_TAB:
-                self.state.month_focus = "events"
-                self.state.month_event_index = view.clamp_event_index(
-                    self.state.month_selected_date, self.state.month_event_index
-                )
-                return True
+                if self._month_events_for_selected_date():
+                    self.state.month_focus = "events"
+                    self.state.month_event_index = view.clamp_event_index(
+                        self.state.month_selected_date, self.state.month_event_index
+                    )
+                    return True
+                return False
         else:  # focus == events
             if ch == KEY_TAB:
                 self.state.month_focus = "grid"
@@ -363,13 +367,17 @@ class Orchestrator:
     def _seed_events_for_month(self, *, force_new: bool = False) -> List[Event]:
         sel_day = self.state.month_selected_date
         if not force_new:
-            evs = [e for e in self.state.events if e.datetime.date() == sel_day]
+            evs = self._month_events_for_selected_date()
             if evs:
                 return evs
         dt_str = f"{sel_day.strftime('%Y-%m-%d')} {SEEDED_DEFAULT_TIME}"
         from models import parse_datetime
 
         return [Event(datetime=parse_datetime(dt_str), event="", details="")]
+
+    def _month_events_for_selected_date(self) -> List[Event]:
+        sel_day = self.state.month_selected_date
+        return [e for e in self.state.events if e.datetime.date() == sel_day]
 
     def _show_overlay(self, stdscr: "curses.window", message: str, kind: str = "error") -> None:  # type: ignore[name-defined]
         self.state.overlay = "error" if kind == "error" else "message"

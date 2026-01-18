@@ -104,8 +104,9 @@ class MonthView:
                 col_x = grid_x + col_idx * cell_w
                 label = f"{day.day:2d}"
                 events_count = len(self.events_by_date.get(day, []))
-                show_suffix = events_count and cell_w >= 8
-                suffix = f" ({events_count})" if show_suffix else ""
+                show_suffix = events_count and cell_w >= 7
+                count_display = min(events_count, 99)
+                suffix = f" ({count_display})" if show_suffix else ""
                 text = f"{label}{suffix}"[: cell_w]
 
                 attr = 0
