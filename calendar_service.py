@@ -3,8 +3,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 from models import Event
 from store import StorageError, load_events, upsert_event
@@ -23,6 +24,31 @@ class CalendarService:
     def load_events(self) -> List[Event]:
         """Load all events from storage."""
         return load_events(self._data_path)
+
+    def filter_events_by_range(
+        self,
+        events: Iterable[Event],
+        *,
+        start: Optional[datetime],
+        end: Optional[datetime],
+    ) -> List[Event]:
+        filtered = []
+        for ev in events:
+            if start and ev.datetime < start:
+                continue
+            if end and ev.datetime > end:
+                continue
+            filtered.append(ev)
+        return filtered
+
+    @staticmethod
+    def filter_events_by_keyword(events: Iterable[Event], keyword: str) -> List[Event]:
+        needle = keyword.lower()
+        return [
+            ev
+            for ev in events
+            if needle in ev.event.lower() or needle in ev.details.lower()
+        ]
 
     def upsert_event(
         self,

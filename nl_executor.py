@@ -6,15 +6,24 @@ from __future__ import annotations
 import json
 from typing import List
 
-from actions import ActionResult, handle_create_event
+from actions import ActionResult, handle_create_event, handle_list_events
 from calendar_service import CalendarService
-from intents import INTENT_RESPONSE_FORMAT, IntentParseError, parse_intent_payload
+from intents import (
+    INTENT_RESPONSE_FORMAT,
+    IntentParseError,
+    parse_intent_payload,
+    CreateEventIntent,
+    ListEventsIntent,
+)
 from openai_client import OpenAIAPIError, OpenAIClient
 from models import Event
 
 NL_SYSTEM_PROMPT = """
-You are an assistant that turns short natural-language calendar commands into structured intents.
-Choose the appropriate intent and fill in the required data.
+You are a scheduling assistant for a CLI calendar.
+Supported intents:
+- create_event: data.datetime (YYYY-MM-DD HH:MM:SS or ISO), data.event, optional data.details
+- list_events: data.range ∈ {day_before_yesterday, yesterday, today, tomorrow, this_week, this_month, next_month, last_month, this_year, all}, optional data.keyword
+Return JSON that matches the provided schema.
 """.strip()
 
 
@@ -59,10 +68,10 @@ class NaturalLanguageExecutor:
         *,
         existing_events: List[Event],
     ) -> ActionResult:
-        from intents import CreateEventIntent
-
         if isinstance(intent, CreateEventIntent):
             return handle_create_event(intent, self._calendar, existing_events=existing_events)
+        if isinstance(intent, ListEventsIntent):
+            return handle_list_events(intent, self._calendar, existing_events=existing_events)
         return ActionResult(False, "Unsupported intent type")
 
 
