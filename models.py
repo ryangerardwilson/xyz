@@ -36,9 +36,20 @@ class ValidationError(Exception):
 
 def parse_datetime(value: str) -> datetime:
     value = value.strip()
+
+    # Accept ISO-8601 formats like YYYY-MM-DDTHH:MM[:SS][Z]
+    iso_candidate = value
+    if iso_candidate.endswith("Z"):
+        iso_candidate = iso_candidate[:-1]
+    iso_candidate = iso_candidate.replace("T", " ")
+    try:
+        return datetime.fromisoformat(iso_candidate)
+    except ValueError:
+        pass
+
     # Accept YYYY-MM-DD HH:MM and normalize seconds
     try:
-        if len(value) == 16:  # YYYY-MM-DD HH:MM
+        if len(value) == 16 and "T" not in value:  # YYYY-MM-DD HH:MM
             value = f"{value}:00"
         return datetime.strptime(value, DATETIME_FMT)
     except ValueError as exc:
