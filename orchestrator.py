@@ -127,7 +127,7 @@ class Orchestrator:
                 ",a / ,m    agenda / month view",
                 "hjkl        navigate",
                 "Tab         toggle focus (month view)",
-                "i           edit selected / create new",
+                "i           grid: new event  /  events: edit selected",
                 "",
                 "Edits open external editor on temp JSON",
                 "datetime format: YYYY-MM-DD HH:MM[:SS]",
@@ -183,8 +183,11 @@ class Orchestrator:
             return self._jump_today()
 
         if ch == KEY_I:
-            force_new = self.state.view == "agenda" and not self.state.events
-            return self._edit_or_create(stdscr, force_new=force_new)
+            if self.state.view == "agenda":
+                force_new = not self.state.events
+                return self._edit_or_create(stdscr, force_new=force_new)
+            else:  # month view
+                return self._handle_month_edit(stdscr)
 
         # View-specific navigation
         if self.state.view == "agenda":
@@ -299,10 +302,12 @@ class Orchestrator:
         if not seeds:
             return False
 
+        payload = seeds
+
         # Exit curses before launching editor
         curses.def_prog_mode()
         curses.endwin()
-        ok, result = edit_event_via_editor(self.config.editor, seeds)
+        ok, result = edit_event_via_editor(self.config.editor, payload)
         curses.reset_prog_mode()
         stdscr.refresh()
         curses.curs_set(0)
@@ -315,15 +320,10 @@ class Orchestrator:
 
         updated_events = cast(List[Event], result)
         originals: List[Event] = []
-        if not allow_overwrite:
-            originals = []
+        if self.state.view == "agenda" and self.state.events and allow_overwrite:
+            originals = [self.state.events[self.state.agenda_index]]
         else:
-            if self.state.view == "agenda" and self.state.events:
-                originals = [self.state.events[self.state.agenda_index]]
-            elif self.state.view == "month":
-                originals = [e for e in self.state.events if e.datetime.date() == self.state.month_selected_date]
-            else:
-                originals = []
+            originals = []
 
         try:
             new_events = self.state.events

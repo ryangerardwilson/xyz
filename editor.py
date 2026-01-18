@@ -16,12 +16,15 @@ class EditorError(Exception):
     pass
 
 
-def edit_event_via_editor(editor_cmd: str, seed_events: List[Event]) -> Tuple[bool, List[Event] | str]:
+def edit_event_via_editor(editor_cmd: str, seed_events: List[Event] | Event) -> Tuple[bool, List[Event] | str]:
     """Launch external editor to edit/create one or more events.
 
     Returns (ok, Events_or_error_message)
     """
-    payload = [event_to_jsonable(ev) for ev in seed_events]
+    if isinstance(seed_events, Event):
+        payload = event_to_jsonable(seed_events)
+    else:
+        payload = [event_to_jsonable(ev) for ev in seed_events]
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as tmp:
         tmp_path = Path(tmp.name)
         json.dump(payload, tmp, indent=2)
