@@ -74,8 +74,15 @@ class Orchestrator:
         except Exception as exc:  # noqa: BLE001
             print(f"Failed to parse natural-language input: {exc}")
             return 1
+
         try:
-            new_events = self.state.events
+            existing = load_events(self.config.data_csv_path)
+        except StorageError as exc:
+            print(f"Storage error: {exc}")
+            return 1
+
+        try:
+            new_events = existing
             for ev in events:
                 new_events = upsert_event(
                     self.config.data_csv_path,
@@ -436,19 +443,24 @@ class Orchestrator:
                     {"role": "system", "content": NL_SYSTEM_PROMPT.strip()},
                     {"role": "user", "content": text},
                 ],
-                "response_format": {"type": "json_schema", "json_schema": {
-                    "name": "event_payload",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "datetime": {"type": "string"},
-                            "event": {"type": "string"},
-                            "details": {"type": "string"},
+                "temperature": 0,
+                "max_tokens": 256,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "event_payload",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "datetime": {"type": "string"},
+                                "event": {"type": "string"},
+                                "details": {"type": "string"},
+                            },
+                            "required": ["datetime", "event"],
+                            "additionalProperties": False,
                         },
-                        "required": ["datetime", "event"],
-                        "additionalProperties": False,
                     },
-                }},
+                },
             }
         ).encode("utf-8")
 
