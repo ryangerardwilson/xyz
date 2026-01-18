@@ -16,7 +16,7 @@ class AgendaView:
 
     def render(self, stdscr: "curses.window", selected_idx: int, scroll: int) -> int:  # type: ignore[name-defined]
         h, w = stdscr.getmaxyx()
-        body_h = h - 2  # header/footer handled by orchestrator
+        body_h = h - 1  # footer handled by orchestrator
 
         lines: List[str] = []
         for ev in self.events:
@@ -42,7 +42,7 @@ class AgendaView:
                 break
             line = lines[line_idx]
             attr = curses.A_REVERSE if line_idx == selected_idx and (self.events or len(lines) == 1) else 0
-            stdscr.addnstr(1 + idx, 0, line[:usable_w].ljust(usable_w), usable_w, attr)
+            stdscr.addnstr(idx, 0, line[:usable_w].ljust(usable_w), usable_w, attr)
         return scroll
 
     def move_selection(self, selected_idx: int, delta: int) -> int:

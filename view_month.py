@@ -34,18 +34,45 @@ class MonthView:
         selected_event_idx: int,
     ) -> None:
         h, w = stdscr.getmaxyx()
-        body_h = h - 2
+        body_h = h - 1
         body_w = w
 
-        # Reserve right pane ~40 cols for events
-        right_w = max(30, min(50, body_w // 3))
-        grid_w = body_w - right_w - 1
+        if body_h <= 0 or body_w <= 0:
+            return
 
-        # Draw grid on left
-        self._draw_grid(stdscr, 1, 0, body_h - 1, grid_w, selected_date)
+        grid_needed_rows = self._grid_required_rows(selected_date)
+        min_events_rows = 3 if body_h >= 3 else body_h
 
-        # Draw events pane on right
-        self._draw_events_pane(stdscr, 1, grid_w + 1, body_h - 1, right_w, selected_date, focus, selected_event_idx)
+        grid_rows = min(grid_needed_rows, max(body_h - min_events_rows, 0))
+        events_rows = body_h - grid_rows
+
+        if events_rows < min_events_rows and body_h >= min_events_rows:
+            events_rows = min_events_rows
+            grid_rows = max(body_h - events_rows, 0)
+
+        if events_rows <= 0:
+            events_rows = min(body_h, min_events_rows)
+            grid_rows = max(body_h - events_rows, 0)
+
+        if grid_rows > 0:
+            self._draw_grid(stdscr, 0, 0, grid_rows, body_w, selected_date)
+        if events_rows > 0:
+            self._draw_events_pane(
+                stdscr,
+                grid_rows,
+                0,
+                events_rows,
+                body_w,
+                selected_date,
+                focus,
+                selected_event_idx,
+            )
+
+    def _grid_required_rows(self, selected_date: date) -> int:
+        cal = calendar.Calendar(firstweekday=0)
+        year, month = selected_date.year, selected_date.month
+        weeks = cal.monthdatescalendar(year, month)
+        return len(weeks) * 2
 
     def _draw_grid(self, stdscr: "curses.window", y: int, x: int, h: int, w: int, selected_date: date) -> None:  # type: ignore[name-defined]
         cal = calendar.Calendar(firstweekday=0)

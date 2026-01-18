@@ -95,8 +95,6 @@ class Orchestrator:
     # Rendering
     def _draw(self, stdscr: "curses.window") -> None:  # type: ignore[name-defined]
         stdscr.erase()
-        header = f"tcal — {self.state.view}"
-        draw_header(stdscr, header)
 
         footer = "q: quit   ?: help   ,: leader   t: today   i: edit/create   Tab: focus (month)"
         draw_footer(stdscr, footer)
