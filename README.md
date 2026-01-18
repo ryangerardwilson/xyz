@@ -24,6 +24,11 @@ Installer flags of note:
 - `--binary /path/to/tcal-linux-x64.tar.gz`: install from a previously downloaded archive.
 - `--no-modify-path`: skip auto-updating shell config files; the script will print the PATH export you should add manually.
 
+Once installed, the binary itself also supports:
+
+- `tcal --version` (or `-V`) to print the installed version
+- `tcal --upgrade` to reinstall via the latest installer script if a newer release exists
+
 You can also download the archive directly from the releases page and run `install.sh --binary` if you prefer.
 
 ### From source
