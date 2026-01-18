@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from typing import List
 
-from actions import ActionResult, handle_create_event, handle_list_events
+from actions import ActionResult, handle_create_event, handle_list_events, handle_reschedule_event
 from calendar_service import CalendarService
 from intents import (
     INTENT_RESPONSE_FORMAT,
@@ -14,7 +14,9 @@ from intents import (
     parse_intent_payload,
     CreateEventIntent,
     ListEventsIntent,
+    RescheduleEventIntent,
 )
+
 from openai_client import OpenAIAPIError, OpenAIClient
 from models import Event
 
@@ -23,6 +25,7 @@ You are a scheduling assistant for a CLI calendar.
 Supported intents:
 - create_event: data.datetime (YYYY-MM-DD HH:MM:SS or ISO), data.event, optional data.details
 - list_events: data.range ∈ {day_before_yesterday, yesterday, today, tomorrow, this_week, this_month, next_month, last_month, this_year, all}, optional data.keyword
+- reschedule_event: data.target_description describes which event to move; either data.new_datetime (ISO) OR data.relative_amount + data.relative_unit (minutes/hours/days/weeks) to shift from the current time. Positive amount = later, negative = earlier.
 Return JSON that matches the provided schema.
 """.strip()
 
@@ -72,6 +75,8 @@ class NaturalLanguageExecutor:
             return handle_create_event(intent, self._calendar, existing_events=existing_events)
         if isinstance(intent, ListEventsIntent):
             return handle_list_events(intent, self._calendar, existing_events=existing_events)
+        if isinstance(intent, RescheduleEventIntent):
+            return handle_reschedule_event(intent, self._calendar, existing_events=existing_events)
         return ActionResult(False, "Unsupported intent type")
 
 
