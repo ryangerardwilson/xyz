@@ -7,7 +7,7 @@ import shlex
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Tuple
+from typing import List, Tuple
 
 from models import Event, ValidationError, event_to_jsonable, normalize_event_payload
 
@@ -16,12 +16,12 @@ class EditorError(Exception):
     pass
 
 
-def edit_event_via_editor(editor_cmd: str, seed_event: Event) -> Tuple[bool, Event | str]:
-    """Launch external editor to edit/create an event.
+def edit_event_via_editor(editor_cmd: str, seed_events: List[Event]) -> Tuple[bool, List[Event] | str]:
+    """Launch external editor to edit/create one or more events.
 
-    Returns (ok, Event_or_error_message)
+    Returns (ok, Events_or_error_message)
     """
-    payload = event_to_jsonable(seed_event)
+    payload = [event_to_jsonable(ev) for ev in seed_events]
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as tmp:
         tmp_path = Path(tmp.name)
         json.dump(payload, tmp, indent=2)
@@ -33,8 +33,10 @@ def edit_event_via_editor(editor_cmd: str, seed_event: Event) -> Tuple[bool, Eve
             return False, "Editor cancelled or failed"
         try:
             data = json.loads(tmp_path.read_text())
-            updated = normalize_event_payload(data)
-            return True, updated
+            if isinstance(data, dict):
+                data = [data]
+            updated_events = [normalize_event_payload(item) for item in data]
+            return True, updated_events
         except ValidationError as exc:
             return False, str(exc)
         except Exception as exc:  # noqa: BLE001

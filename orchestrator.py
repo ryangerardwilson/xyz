@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 import curses
 import time
-from datetime import date
-from typing import Sequence, cast
+from datetime import date, datetime
+from typing import List, Sequence, cast
 
 from config import load_config
 from editor import edit_event_via_editor
@@ -60,6 +60,11 @@ class Orchestrator:
         curses.curs_set(0)
         stdscr.nodelay(True)
         stdscr.timeout(100)
+        try:
+            curses.start_color()
+            curses.use_default_colors()
+        except curses.error:
+            pass
 
         # Initial load
         try:
@@ -287,19 +292,19 @@ class Orchestrator:
     # Editing / creating
     def _edit_or_create(self, stdscr: "curses.window", *, force_new: bool = False) -> bool:  # type: ignore[name-defined]
         if self.state.view == "agenda":
-            seed = self._seed_event_for_agenda(force_new=force_new)
+            seeds = self._seed_events_for_agenda(force_new=force_new)
             original_allowed = False if force_new else True
         else:
-            seed = self._seed_event_for_month()
+            seeds = self._seed_events_for_month(force_new=force_new)
             original_allowed = True
 
-        if seed is None:
+        if not seeds:
             return False
 
         # Exit curses before launching editor
         curses.def_prog_mode()
         curses.endwin()
-        ok, result = edit_event_via_editor(self.config.editor, seed)
+        ok, result = edit_event_via_editor(self.config.editor, seeds)
         curses.reset_prog_mode()
         stdscr.refresh()
         curses.curs_set(0)
@@ -310,28 +315,30 @@ class Orchestrator:
             self._show_overlay(stdscr, str(result), kind="error")
             return True
 
-        updated = cast(Event, result)
-        # If editing, detect original
-        original = None
+        updated_events = cast(List[Event], result)
+        originals: List[Event] = []
         if original_allowed and self.state.view == "agenda" and self.state.events:
-            original = self.state.events[self.state.agenda_index]
+            originals = [self.state.events[self.state.agenda_index]]
         elif self.state.view == "month":
-            evs = [e for e in self.state.events if e.datetime.date() == self.state.month_selected_date]
-            if evs and self.state.month_event_index < len(evs):
-                original = evs[self.state.month_event_index]
+            originals = [e for e in self.state.events if e.datetime.date() == self.state.month_selected_date]
 
         try:
-            self.state.events = upsert_event(
-                self.config.data_csv_path,
-                self.state.events,
-                updated,
-                replace_dt=(original is not None, original),
-            )
+            new_events = self.state.events
+            for idx, ev in enumerate(updated_events):
+                original = originals[idx] if idx < len(originals) else None
+                new_events = upsert_event(
+                    self.config.data_csv_path,
+                    new_events,
+                    ev,
+                    replace_dt=(original is not None, original),
+                )
+            self.state.events = new_events
             # Rebuild any derived selection indices sensibly
             if self.state.view == "agenda":
-                # Move selection to updated event
+                # Move selection to first updated event
+                target_dt = updated_events[0].datetime
                 for idx, ev in enumerate(self.state.events):
-                    if ev.datetime == updated.datetime:
+                    if ev.datetime == target_dt:
                         self.state.agenda_index = idx
                         break
             else:
@@ -342,25 +349,25 @@ class Orchestrator:
             self._show_overlay(stdscr, f"Storage error: {exc}", kind="error")
         return True
 
-    def _seed_event_for_agenda(self, *, force_new: bool = False) -> Event | None:
+    def _seed_events_for_agenda(self, *, force_new: bool = False) -> List[Event]:
         if not force_new and self.state.events and 0 <= self.state.agenda_index < len(self.state.events):
-            return self.state.events[self.state.agenda_index]
-        # Empty or forced new: create new seeded event today 09:00
+            return [self.state.events[self.state.agenda_index]]
         today = date.today()
         dt_str = f"{today.strftime('%Y-%m-%d')} {SEEDED_DEFAULT_TIME}"
         from models import parse_datetime
 
-        return Event(datetime=parse_datetime(dt_str), event="", details="")
+        return [Event(datetime=parse_datetime(dt_str), event="", details="")]
 
-    def _seed_event_for_month(self) -> Event | None:
+    def _seed_events_for_month(self, *, force_new: bool = False) -> List[Event]:
         sel_day = self.state.month_selected_date
-        evs = [e for e in self.state.events if e.datetime.date() == sel_day]
-        if evs and self.state.month_event_index < len(evs):
-            return evs[self.state.month_event_index]
+        if not force_new:
+            evs = [e for e in self.state.events if e.datetime.date() == sel_day]
+            if evs:
+                return evs
         dt_str = f"{sel_day.strftime('%Y-%m-%d')} {SEEDED_DEFAULT_TIME}"
         from models import parse_datetime
 
-        return Event(datetime=parse_datetime(dt_str), event="", details="")
+        return [Event(datetime=parse_datetime(dt_str), event="", details="")]
 
     def _show_overlay(self, stdscr: "curses.window", message: str, kind: str = "error") -> None:  # type: ignore[name-defined]
         self.state.overlay = "error" if kind == "error" else "message"
