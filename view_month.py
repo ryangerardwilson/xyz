@@ -174,19 +174,12 @@ class MonthView:
         selected_event_idx: int,
     ) -> None:
         evs = self.events_by_date.get(selected_date, [])
+        if not evs:
+            return
+
         title = f"Events {selected_date.isoformat()}"
         usable_w = max(0, w - 1)
         stdscr.addnstr(y, x, title[:usable_w].ljust(usable_w), usable_w, curses.A_BOLD)
-
-        if not evs:
-            stdscr.addnstr(
-                y + 1,
-                x,
-                "(none) — press i to create"[:usable_w].ljust(usable_w),
-                usable_w,
-                curses.A_DIM,
-            )
-            return
 
         body_h = h - 1
         if usable_w == 0 or body_h <= 0:

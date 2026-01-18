@@ -140,7 +140,7 @@ class Orchestrator:
     def _draw(self, stdscr: "curses.window") -> None:  # type: ignore[name-defined]
         stdscr.erase()
 
-        footer = "q: quit   ?: help   ,: leader   t: today   i: edit/create   Tab: focus (month)"
+        footer = "? help"
         draw_footer(stdscr, footer)
 
         if self.state.view == "agenda":
@@ -165,20 +165,18 @@ class Orchestrator:
     def _render_overlay(self, stdscr: "curses.window") -> None:  # type: ignore[name-defined]
         if self.state.overlay == "help":
             lines = [
-                "tcal help",
+                "tcal shortcuts",
                 "",
-                "q           quit",
-                "?           toggle this help",
-                "t           jump to today",
-                ",a / ,m    agenda / month view",
-                "hjkl        navigate",
-                "Tab         toggle focus (month view)",
-                "i           events: edit selected",
-                "",
-                "Edits open external editor on temp JSON",
-                "datetime format: YYYY-MM-DD HH:MM[:SS]",
-                "",
-                "Esc to dismiss",
+                "q            quit",
+                "?            toggle this help",
+                "t            jump to today",
+                "i            edit/create event",
+                "dd           delete selected event",
+                "hjkl         navigate (agenda/month)",
+                "Ctrl+h/l     month view: prev/next month",
+                ",a / ,m      switch agenda / month",
+                "Tab          toggle focus (month view)",
+                "Esc          dismiss overlays",
             ]
             draw_centered_box(stdscr, lines)
         elif self.state.overlay in ("error", "message"):
