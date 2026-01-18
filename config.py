@@ -17,13 +17,17 @@ class Config:
     editor: str
 
 
-DEFAULT_DATA_FILENAME = "events.csv"
+DEFAULT_DATA_FILENAME = "event.csv"
 DEFAULT_EDITOR = "vim"
 CONFIG_FILENAME = "config.json"
 
 
 def _default_data_path() -> Path:
-    data_dir = Path(os.environ.get("XDG_DATA_HOME", xdg_data_home())) / "tcal"
+    xdg_data_env = os.environ.get("XDG_DATA_HOME")
+    if xdg_data_env:
+        data_dir = Path(xdg_data_env) / "tcal"
+    else:
+        data_dir = Path("~/.tcal")
     return data_dir / DEFAULT_DATA_FILENAME
 
 

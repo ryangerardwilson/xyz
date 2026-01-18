@@ -15,7 +15,7 @@ Tcal is a **Vim-first, terminal-native calendar** written in Python with `curses
 - **Centralized orchestration** – `orchestrator.py` owns argument parsing, curses lifecycle, and mode routing.
 - **Flat layout** – small, single-purpose modules in the repo root until growth justifies folders.
 - **XDG-compliant config** – settings live in `$XDG_CONFIG_HOME/tcal/config.json` (fallback `~/.config/tcal/config.json`).
-- **Inspectable storage** – event data persists as a simple CSV file at a user-configurable path (default `~/.local/share/tcal/events.csv`).
+- **Inspectable storage** – event data persists as a simple CSV file at a user-configurable path (default `$XDG_DATA_HOME/tcal/event.csv`, fallback `~/.tcal/event.csv`).
 - **Fail-safe terminal handling** – always restore terminal state, never leave users in broken tty mode.
 
 ---
@@ -85,11 +85,11 @@ Anything that requires background services, OAuth, or long-running network conne
 - Example:
 ```json
 {
-  "data_csv_path": "/home/ryan/.local/share/tcal/events.csv",
+  "data_csv_path": "/home/ryan/.tcal/event.csv",
   "editor": "vim"
 }
 ```
-- `data_csv_path` is required; if missing, default to `~/.local/share/tcal/events.csv` and ensure directories exist.
+- `data_csv_path` is required; if missing, default to `$XDG_DATA_HOME/tcal/event.csv` (fallback `~/.tcal/event.csv`) and ensure directories exist.
 - `editor` is optional; fallback order: config → `$EDITOR` env → `vim`.
 
 ### 6.2 CSV Schema

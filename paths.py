@@ -11,7 +11,7 @@ def xdg_config_home() -> Path:
 
 
 def xdg_data_home() -> Path:
-    return Path(os.environ.get("XDG_DATA_HOME", "~/.local/share")).expanduser()
+    return Path(os.environ.get("XDG_DATA_HOME", "~/.tcal")).expanduser()
 
 
 def ensure_dir(path: Path) -> None:
