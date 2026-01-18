@@ -2,7 +2,10 @@
 
 ## 1. Overview
 
-Tcal is a **Vim-first, terminal-native calendar** written in Python with `curses`. It focuses on fast keyboard workflows for inspecting schedules while keeping storage explicit and inspectable. Users stay in the terminal, navigate with Vim muscle memory, and jump between high-level views with a comma leader.
+Tcal is a **Vim-first, terminal-native calendar** written in Python with
+`curses`. It focuses on fast keyboard workflows for inspecting schedules while
+keeping storage explicit and inspectable. Users stay in the terminal, navigate
+with Vim muscle memory, and jump between high-level views with a comma leader.
 
 ---
 
@@ -30,7 +33,8 @@ Tcal is a **Vim-first, terminal-native calendar** written in Python with `curses
 - Complex plugin systems or embedded scripting engines.
 - Multi-user collaboration or shared calendars.
 
-Anything that requires background services, OAuth, or long-running network connections is outside MVP scope.
+Anything that requires background services, OAuth, or long-running network
+connections is outside MVP scope.
 
 ---
 
@@ -126,27 +130,27 @@ Constraints:
 - **Insert/Edit mode**: triggered indirectly through external editor (`i`). Tcal exits curses mode, launches Vim, then restores the UI when editing completes.
 - **Command palette (future)**: `:` reserved for future commands (`:export`, `:goto 2026-01-01`, etc.).
 
-Mode transitions mirror Vim expectations: `Esc` clears leader state and overlays, `i` launches editor for the focused item, `:` (future) enters command entry.
+Mode transitions mirror Vim expectations: `Esc` clears leader state and
+overlays, `i` launches editor for the focused item, `:` (future) enters command
+entry.
 
 ---
 
 ## 8. Keybinding Baseline
 
-| Key / Sequence | Scope | Action |
-| --- | --- | --- |
-| `q` | global | Quit (prompt if unsaved changes). |
-| `?` | global | Toggle help overlay. |
-| `t` | global | Jump focus to today. |
-| `,m` | global | Switch to Month view. |
-| `,a` | global | Switch to Agenda view. |
-| `,w` | global | Switch to Week view (placeholder). |
-| `,d` | global | Switch to Day view (placeholder). |
-| `h` / `l` | month & agenda | Move selection left/right (prev/next day or prev/next entry). |
-| `j` / `k` | month & agenda | Move selection down/up (next/prev week in month, next/prev entry in agenda). |
-| `i` | item-focused | Edit selected entry in external Vim session. |
-| `Esc` | overlays/leader | Dismiss help overlay or cancel leader sequence. |
+| Key / Sequence | Scope | Action | | --- | --- | --- | | `q` | global | Quit
+(prompt if unsaved changes). | | `?` | global | Toggle help overlay. | | `t` |
+global | Jump focus to today. | | `,m` | global | Switch to Month view. | |
+`,a` | global | Switch to Agenda view. | | `,w` | global | Switch to Week view
+(placeholder). | | `,d` | global | Switch to Day view (placeholder). | | `h` /
+`l` | month & agenda | Move selection left/right (prev/next day or prev/next
+entry). | | `j` / `k` | month & agenda | Move selection down/up (next/prev week
+in month, next/prev entry in agenda). | | `i` | item-focused | Edit selected
+entry in external Vim session. | | `Esc` | overlays/leader | Dismiss help
+overlay or cancel leader sequence. |
 
-Keybindings will become configurable via `config.json`, but defaults must feel great out of the box.
+Keybindings will become configurable via `config.json`, but defaults must feel
+great out of the box.
 
 ---
 
@@ -183,4 +187,5 @@ Keybindings will become configurable via `config.json`, but defaults must feel g
 - Notifications and reminders.
 - Multi-user sharing or invites.
 
-Scope creep checklist: if a feature needs background jobs, OAuth, or third-party APIs, it stays out until priorities change.
+Scope creep checklist: if a feature needs background jobs, OAuth, or third-
+party APIs, it stays out until priorities change.

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Month view rendering and interactions."""
+
 from __future__ import annotations
 
 import calendar
 import curses
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Tuple
+from datetime import date, timedelta
+from typing import Dict, List
 
 from models import Event
 from ui_base import clamp
@@ -41,7 +42,9 @@ class MonthView:
             return
 
         title = f"{calendar.month_name[selected_date.month]}, {selected_date.year}"
-        stdscr.addnstr(0, 0, title[: max(0, body_w - 1)], max(0, body_w - 1), curses.A_BOLD)
+        stdscr.addnstr(
+            0, 0, title[: max(0, body_w - 1)], max(0, body_w - 1), curses.A_BOLD
+        )
 
         available_h = body_h - 1
         if available_h <= 0:
@@ -81,7 +84,15 @@ class MonthView:
         weeks = cal.monthdatescalendar(year, month)
         return len(weeks)
 
-    def _draw_grid(self, stdscr: "curses.window", y: int, x: int, h: int, w: int, selected_date: date) -> None:  # type: ignore[name-defined]
+    def _draw_grid(
+        self,
+        stdscr: "curses.window",
+        y: int,
+        x: int,
+        h: int,
+        w: int,
+        selected_date: date,
+    ) -> None:  # type: ignore[name-defined]
         cal = calendar.Calendar(firstweekday=0)
         year, month = selected_date.year, selected_date.month
         weeks = cal.monthdatescalendar(year, month)
@@ -107,7 +118,7 @@ class MonthView:
                 show_suffix = events_count and cell_w >= 7
                 count_display = min(events_count, 99)
                 suffix = f" ({count_display})" if show_suffix else ""
-                text = f"{label}{suffix}"[: cell_w]
+                text = f"{label}{suffix}"[:cell_w]
 
                 attr = 0
                 if day == today:
@@ -136,7 +147,13 @@ class MonthView:
         stdscr.addnstr(y, x, title[:usable_w].ljust(usable_w), usable_w, curses.A_BOLD)
 
         if not evs:
-            stdscr.addnstr(y + 1, x, "(none) — press i to create"[:usable_w].ljust(usable_w), usable_w, curses.A_DIM)
+            stdscr.addnstr(
+                y + 1,
+                x,
+                "(none) — press i to create"[:usable_w].ljust(usable_w),
+                usable_w,
+                curses.A_DIM,
+            )
             return
 
         body_h = h - 1
@@ -147,7 +164,11 @@ class MonthView:
             ev = evs[idx]
             ts = ev.datetime.strftime("%H:%M")
             line = f"{ts} {ev.event}"[:usable_w].ljust(usable_w)
-            attr = curses.A_REVERSE if (focus == "events" and idx == selected_event_idx) else 0
+            attr = (
+                curses.A_REVERSE
+                if (focus == "events" and idx == selected_event_idx)
+                else 0
+            )
             stdscr.addnstr(y + 1 + idx, x, line, usable_w, attr)
 
     def move_day(self, selected_date: date, delta_days: int) -> date:

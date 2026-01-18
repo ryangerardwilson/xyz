@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Key constants and mappings."""
+
 from __future__ import annotations
 
-import curses
 
 # Key constants
 KEY_Q = ord("q")

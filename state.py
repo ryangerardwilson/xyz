@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """App state container for tcal."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date
 from typing import List, Literal, Optional
 
 from models import Event

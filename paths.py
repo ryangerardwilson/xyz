@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """XDG path helpers for tcal."""
+
 from __future__ import annotations
 
 import os

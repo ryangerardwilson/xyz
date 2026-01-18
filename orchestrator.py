@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """Orchestrator for tcal."""
+
 from __future__ import annotations
 
-import argparse
 import curses
 import time
-from datetime import date, datetime
+from datetime import date
 from urllib.error import URLError
-from typing import List, Sequence, cast
+from typing import List, cast
 
 import json
-import os
 import urllib.request
 
 from models import parse_datetime as parse_dt_str
@@ -45,7 +44,7 @@ Assume local time. If date/time missing, infer the soonest reasonable future dat
 """
 from state import AppState
 from store import StorageError, load_events, upsert_event
-from ui_base import draw_centered_box, draw_footer, draw_header
+from ui_base import draw_centered_box, draw_footer
 from view_agenda import AgendaView
 from view_month import MonthView
 
@@ -67,7 +66,9 @@ class Orchestrator:
     # Natural-language CLI entrypoint
     def handle_nl_cli(self, text: str) -> int:
         if not self.config.openai_api_key:
-            print("Missing openai_api_key in config. Please set it in ~/.config/tcal/config.json")
+            print(
+                "Missing openai_api_key in config. Please set it in ~/.config/tcal/config.json"
+            )
             return 1
         try:
             events = self._nl_to_events(text)
@@ -154,7 +155,9 @@ class Orchestrator:
 
         if self.state.view == "agenda":
             view = AgendaView(self.state.events)
-            self.state.agenda_scroll = view.render(stdscr, self.state.agenda_index, self.state.agenda_scroll)
+            self.state.agenda_scroll = view.render(
+                stdscr, self.state.agenda_index, self.state.agenda_scroll
+            )
         else:
             view = MonthView(self.state.events)
             view.render(
@@ -189,7 +192,9 @@ class Orchestrator:
             ]
             draw_centered_box(stdscr, lines)
         elif self.state.overlay in ("error", "message"):
-            draw_centered_box(stdscr, [self.state.overlay_message, "", "Press any key to dismiss"])
+            draw_centered_box(
+                stdscr, [self.state.overlay_message, "", "Press any key to dismiss"]
+            )
 
     # Key handling
     def _handle_key(self, stdscr: "curses.window", ch: int) -> bool:
@@ -215,7 +220,6 @@ class Orchestrator:
             if ch == ord("n"):
                 return self._edit_or_create(stdscr, force_new=True)
             return True  # unknown leader key just cancels
-
 
         if ch == KEY_LEADER:
             self.state.leader.active = True
@@ -243,7 +247,11 @@ class Orchestrator:
             if self.state.view == "agenda":
                 force_new = not self.state.events
                 return self._edit_or_create(stdscr, force_new=force_new)
-            elif self.state.view == "month" and self.state.month_focus == "events" and self._month_events_for_selected_date():
+            elif (
+                self.state.view == "month"
+                and self.state.month_focus == "events"
+                and self._month_events_for_selected_date()
+            ):
                 return self._edit_or_create(stdscr, force_new=False)
             else:
                 return False
@@ -284,7 +292,12 @@ class Orchestrator:
                 if self.state.events[idx].datetime.date() < cur_day:
                     target_day = self.state.events[idx].datetime.date()
                     first_idx = next(
-                        (i for i, ev in enumerate(self.state.events) if ev.datetime.date() == target_day), idx
+                        (
+                            i
+                            for i, ev in enumerate(self.state.events)
+                            if ev.datetime.date() == target_day
+                        ),
+                        idx,
                     )
                     self.state.agenda_index = first_idx
                     return True
@@ -300,19 +313,27 @@ class Orchestrator:
         view = MonthView(self.state.events)
         if self.state.month_focus == "grid":
             if ch == KEY_H:
-                self.state.month_selected_date = view.move_day(self.state.month_selected_date, -1)
+                self.state.month_selected_date = view.move_day(
+                    self.state.month_selected_date, -1
+                )
                 self.state.month_event_index = 0
                 return True
             if ch == KEY_L:
-                self.state.month_selected_date = view.move_day(self.state.month_selected_date, +1)
+                self.state.month_selected_date = view.move_day(
+                    self.state.month_selected_date, +1
+                )
                 self.state.month_event_index = 0
                 return True
             if ch == KEY_J:
-                self.state.month_selected_date = view.move_week(self.state.month_selected_date, +1)
+                self.state.month_selected_date = view.move_week(
+                    self.state.month_selected_date, +1
+                )
                 self.state.month_event_index = 0
                 return True
             if ch == KEY_K:
-                self.state.month_selected_date = view.move_week(self.state.month_selected_date, -1)
+                self.state.month_selected_date = view.move_week(
+                    self.state.month_selected_date, -1
+                )
                 self.state.month_event_index = 0
                 return True
             if ch == KEY_TAB:
@@ -351,7 +372,9 @@ class Orchestrator:
             return True
 
     # Editing / creating
-    def _edit_or_create(self, stdscr: "curses.window", *, force_new: bool = False) -> bool:  # type: ignore[name-defined]
+    def _edit_or_create(
+        self, stdscr: "curses.window", *, force_new: bool = False
+    ) -> bool:  # type: ignore[name-defined]
         if self.state.view == "agenda":
             seeds = self._seed_events_for_agenda(force_new=force_new)
             allow_overwrite = not force_new
@@ -400,7 +423,11 @@ class Orchestrator:
             if self.state.view == "agenda":
                 target_dt = updated_events[0].datetime
                 for idx, ev in enumerate(self.state.events):
-                    if ev.datetime == target_dt and ev.event == updated_events[0].event and ev.details == updated_events[0].details:
+                    if (
+                        ev.datetime == target_dt
+                        and ev.event == updated_events[0].event
+                        and ev.details == updated_events[0].details
+                    ):
                         self.state.agenda_index = idx
                         break
             else:
@@ -412,7 +439,11 @@ class Orchestrator:
         return True
 
     def _seed_events_for_agenda(self, *, force_new: bool = False) -> List[Event]:
-        if not force_new and self.state.events and 0 <= self.state.agenda_index < len(self.state.events):
+        if (
+            not force_new
+            and self.state.events
+            and 0 <= self.state.agenda_index < len(self.state.events)
+        ):
             return [self.state.events[self.state.agenda_index]]
         today = date.today()
         dt_str = f"{today.strftime('%Y-%m-%d')} {SEEDED_DEFAULT_TIME}"
@@ -497,7 +528,9 @@ class Orchestrator:
 
         return [ev]
 
-    def _show_overlay(self, stdscr: "curses.window", message: str, kind: str = "error") -> None:  # type: ignore[name-defined]
+    def _show_overlay(
+        self, stdscr: "curses.window", message: str, kind: str = "error"
+    ) -> None:  # type: ignore[name-defined]
         self.state.overlay = "error" if kind == "error" else "message"
         self.state.overlay_message = message
         self._draw(stdscr)

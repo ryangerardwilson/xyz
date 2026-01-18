@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Agenda view rendering and interactions."""
+
 from __future__ import annotations
 
 import curses
@@ -41,7 +42,11 @@ class AgendaView:
             if line_idx >= len(lines):
                 break
             line = lines[line_idx]
-            attr = curses.A_REVERSE if line_idx == selected_idx and (self.events or len(lines) == 1) else 0
+            attr = (
+                curses.A_REVERSE
+                if line_idx == selected_idx and (self.events or len(lines) == 1)
+                else 0
+            )
             stdscr.addnstr(idx, 0, line[:usable_w].ljust(usable_w), usable_w, attr)
         return scroll
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """External editor flow for tcal."""
+
 from __future__ import annotations
 
 import json
@@ -18,7 +19,9 @@ class EditorError(Exception):
     pass
 
 
-def edit_event_via_editor(editor_cmd: str, seed_events: List[Event] | Event) -> Tuple[bool, List[Event] | str]:
+def edit_event_via_editor(
+    editor_cmd: str, seed_events: List[Event] | Event
+) -> Tuple[bool, List[Event] | str]:
     """Launch external editor to edit/create one or more events.
 
     Returns (ok, Events_or_error_message)

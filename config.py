@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Configuration loading and path resolution for tcal."""
+
 from __future__ import annotations
 
 import json
@@ -8,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from paths import ensure_dir, xdg_config_home, xdg_data_home
+from paths import ensure_dir, xdg_config_home
 
 
 @dataclass

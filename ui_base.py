@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Basic UI helpers for curses rendering."""
+
 from __future__ import annotations
 
 import curses
-from typing import Iterable, Tuple
+from typing import Iterable
 
 
 def draw_header(stdscr: "curses.window", text: str) -> None:  # type: ignore[name-defined]

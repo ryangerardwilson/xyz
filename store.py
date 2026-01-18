@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """CSV-backed storage for tcal events."""
+
 from __future__ import annotations
 
 import csv
@@ -7,9 +8,8 @@ import tempfile
 from pathlib import Path
 from typing import Iterable, List, Tuple
 
-from datetime import datetime
 
-from models import DATETIME_FMT, Event, ValidationError
+from models import DATETIME_FMT, Event
 
 
 class StorageError(Exception):
@@ -44,7 +44,9 @@ def load_events(path: Path) -> List[Event]:
 
 def _write_atomic(path: Path, rows: Iterable[List[str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", newline="", delete=False, encoding="utf-8", dir=str(path.parent)) as tmp:
+    with tempfile.NamedTemporaryFile(
+        "w", newline="", delete=False, encoding="utf-8", dir=str(path.parent)
+    ) as tmp:
         tmp_path = Path(tmp.name)
         writer = csv.writer(tmp)
         for row in rows:
@@ -58,13 +60,24 @@ def save_events(path: Path, events: Iterable[Event]) -> None:
     _write_atomic(path, rows)
 
 
-def upsert_event(path: Path, events: List[Event], new_event: Event, *, replace_dt: Tuple[bool, Event | None] = (False, None)) -> List[Event]:
+def upsert_event(
+    path: Path,
+    events: List[Event],
+    new_event: Event,
+    *,
+    replace_dt: Tuple[bool, Event | None] = (False, None),
+) -> List[Event]:
     editing, original = replace_dt
     updated: List[Event] = []
     replaced = False
     if editing and original is not None:
         for e in events:
-            if not replaced and e.datetime == original.datetime and e.event == original.event and e.details == original.details:
+            if (
+                not replaced
+                and e.datetime == original.datetime
+                and e.event == original.event
+                and e.details == original.details
+            ):
                 replaced = True
                 continue
             updated.append(e)

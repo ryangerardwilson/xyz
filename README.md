@@ -1,12 +1,18 @@
 # tcal
 
-Tcal is a **Vim-first, terminal-native calendar** for folks who live in Vim and want a fast way to browse days, weeks, and months without leaving the terminal. It is written in Python using `curses`, keeps a flat project layout, and mirrors the thin-`main.py`/central-`orchestrator.py` pattern used across my other tools.
+Tcal is a **Vim-first, terminal-native calendar** for folks who live in Vim and
+want a fast way to browse days, weeks, and months without leaving the terminal.
+It is written in Python using `curses`, keeps a flat project layout, and
+mirrors the thin-`main.py`/central-`orchestrator.py` pattern used across my
+other tools.
 
 ---
 
 ## Status
 
-🚧 Early scaffolding. The current build now targets the v0 contract: Agenda + Month views, external editing via `$EDITOR` on a temp JSON, and CSV-backed storage.
+🚧 Early scaffolding. The current build now targets the v0 contract: Agenda +
+Month views, external editing via `$EDITOR` on a temp JSON, and CSV-backed
+storage.
 
 ---
 
@@ -19,7 +25,8 @@ Tcal is a **Vim-first, terminal-native calendar** for folks who live in Vim and 
 - **Optional AI input** – if `openai_api_key` is set in config, you can add events via natural language on the CLI (e.g., `python main.py "meet Alex on 2026-09-07"`).
 - **Small modules** – `main.py` stays tiny, `orchestrator.py` owns top-level policy, leaf modules do one thing.
 
-The detailed scope, non-goals, and roadmap live in [`PROJECTSCOPE.md`](./PROJECTSCOPE.md).
+The detailed scope, non-goals, and roadmap live in
+[`PROJECTSCOPE.md`](./PROJECTSCOPE.md).
 
 ---
 
@@ -29,7 +36,9 @@ The detailed scope, non-goals, and roadmap live in [`PROJECTSCOPE.md`](./PROJECT
 python main.py
 ```
 
-You should see a placeholder screen with a header and a quit hint. Press `q` to exit. As features land, this section will expand with keybindings and workflows.
+You should see a placeholder screen with a header and a quit hint. Press `q` to
+exit. As features land, this section will expand with keybindings and
+workflows.
 
 ---
 
@@ -49,7 +58,8 @@ Medium-term goals:
 - Agenda-style rolling list view.
 - Optional ICS import/export commands.
 
-Out-of-scope for now: CalDAV/Google sync, notifications, natural-language assistants, background services.
+Out-of-scope for now: CalDAV/Google sync, notifications, natural-language
+assistants, background services.
 
 ---
 
@@ -69,4 +79,5 @@ tcal/
 └─ PROJECTSCOPE.md
 ```
 
-As functionality grows, expect small modules to appear alongside (`event_store.py`, `app_state.py`, etc.).
+As functionality grows, expect small modules to appear alongside
+(`event_store.py`, `app_state.py`, etc.).

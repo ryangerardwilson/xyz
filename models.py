@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Core models and validation helpers for tcal."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,7 +16,13 @@ class Event:
     event: str
     details: str = ""
 
-    def with_updated(self, *, dt: Optional[datetime] = None, event: Optional[str] = None, details: Optional[str] = None) -> "Event":
+    def with_updated(
+        self,
+        *,
+        dt: Optional[datetime] = None,
+        event: Optional[str] = None,
+        details: Optional[str] = None,
+    ) -> "Event":
         return Event(
             datetime=dt if dt is not None else self.datetime,
             event=event if event is not None else self.event,
@@ -35,7 +42,9 @@ def parse_datetime(value: str) -> datetime:
             value = f"{value}:00"
         return datetime.strptime(value, DATETIME_FMT)
     except ValueError as exc:
-        raise ValidationError(f"Invalid datetime format: '{value}'. Expected YYYY-MM-DD HH:MM[:SS]") from exc
+        raise ValidationError(
+            f"Invalid datetime format: '{value}'. Expected YYYY-MM-DD HH:MM[:SS]"
+        ) from exc
 
 
 def normalize_event_payload(data: dict) -> Event:
