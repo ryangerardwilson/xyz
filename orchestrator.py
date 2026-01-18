@@ -293,10 +293,10 @@ class Orchestrator:
     def _edit_or_create(self, stdscr: "curses.window", *, force_new: bool = False) -> bool:  # type: ignore[name-defined]
         if self.state.view == "agenda":
             seeds = self._seed_events_for_agenda(force_new=force_new)
-            original_allowed = False if force_new else True
+            allow_overwrite = not force_new
         else:
             seeds = self._seed_events_for_month(force_new=force_new)
-            original_allowed = True
+            allow_overwrite = not force_new
 
         if not seeds:
             return False
@@ -317,10 +317,15 @@ class Orchestrator:
 
         updated_events = cast(List[Event], result)
         originals: List[Event] = []
-        if original_allowed and self.state.view == "agenda" and self.state.events:
-            originals = [self.state.events[self.state.agenda_index]]
-        elif self.state.view == "month":
-            originals = [e for e in self.state.events if e.datetime.date() == self.state.month_selected_date]
+        if not allow_overwrite:
+            originals = []
+        else:
+            if self.state.view == "agenda" and self.state.events:
+                originals = [self.state.events[self.state.agenda_index]]
+            elif self.state.view == "month":
+                originals = [e for e in self.state.events if e.datetime.date() == self.state.month_selected_date]
+            else:
+                originals = []
 
         try:
             new_events = self.state.events
@@ -335,10 +340,9 @@ class Orchestrator:
             self.state.events = new_events
             # Rebuild any derived selection indices sensibly
             if self.state.view == "agenda":
-                # Move selection to first updated event
                 target_dt = updated_events[0].datetime
                 for idx, ev in enumerate(self.state.events):
-                    if ev.datetime == target_dt:
+                    if ev.datetime == target_dt and ev.event == updated_events[0].event and ev.details == updated_events[0].details:
                         self.state.agenda_index = idx
                         break
             else:

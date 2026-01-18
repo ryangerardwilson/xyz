@@ -53,14 +53,7 @@ def _write_atomic(path: Path, rows: Iterable[List[str]]) -> None:
 
 
 def save_events(path: Path, events: Iterable[Event]) -> None:
-    seen = set()
-    ordered: List[Event] = []
-    for e in events:
-        if e.datetime in seen:
-            raise ValidationError("Duplicate datetime detected")
-        seen.add(e.datetime)
-        ordered.append(e)
-    ordered.sort(key=lambda e: e.datetime)
+    ordered = sorted(events, key=lambda e: (e.datetime, e.event, e.details))
     rows = [_serialize_event(e) for e in ordered]
     _write_atomic(path, rows)
 
@@ -68,13 +61,15 @@ def save_events(path: Path, events: Iterable[Event]) -> None:
 def upsert_event(path: Path, events: List[Event], new_event: Event, *, replace_dt: Tuple[bool, Event | None] = (False, None)) -> List[Event]:
     editing, original = replace_dt
     updated: List[Event] = []
-    target_old_dt = original.datetime if (editing and original is not None) else None
-    for e in events:
-        if target_old_dt is not None and e.datetime == target_old_dt:
-            continue
-        updated.append(e)
-    if any(e.datetime == new_event.datetime for e in updated):
-        raise ValidationError("An event already exists at that datetime")
+    replaced = False
+    if editing and original is not None:
+        for e in events:
+            if not replaced and e.datetime == original.datetime and e.event == original.event and e.details == original.details:
+                replaced = True
+                continue
+            updated.append(e)
+    else:
+        updated = list(events)
     updated.append(new_event)
     save_events(path, updated)
     return updated
