@@ -13,6 +13,7 @@ KEY_LEADER = ord(",")
 KEY_ESC = 27
 KEY_I = ord("i")
 KEY_TAB = 9
+KEY_D = ord("d")
 
 KEY_H = ord("h")
 KEY_J = ord("j")
@@ -32,6 +33,7 @@ __all__ = [
     "KEY_ESC",
     "KEY_I",
     "KEY_TAB",
+    "KEY_D",
     "KEY_H",
     "KEY_J",
     "KEY_K",

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
 from models import Event
-from store import StorageError, load_events, upsert_event
+from store import StorageError, load_events, save_events, upsert_event
 
 
 class CalendarService:
@@ -64,6 +64,20 @@ class CalendarService:
             new_event,
             replace_dt=replace_dt,
         )
+
+    def delete_event(self, events: List[Event], target: Event) -> List[Event]:
+        """Remove an event that exactly matches the target."""
+        remaining = [
+            ev
+            for ev in events
+            if not (
+                ev.datetime == target.datetime
+                and ev.event == target.event
+                and ev.details == target.details
+            )
+        ]
+        save_events(self._data_path, remaining)
+        return remaining
 
 
 __all__ = ["CalendarService", "StorageError"]

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import curses
 import time
-from datetime import date
+from datetime import date, timedelta
 from typing import List, cast
 
 from calendar_service import CalendarService, StorageError
@@ -29,6 +29,7 @@ from keys import (
     KEY_Q,
     KEY_TAB,
     KEY_TODAY,
+    KEY_D,
 )
 from models import Event, ValidationError
 from state import AppState
@@ -37,6 +38,7 @@ from view_agenda import AgendaView
 from view_month import MonthView
 
 LEADER_TIMEOUT_MS = 1000
+DELETE_TIMEOUT_MS = 600
 SEEDED_DEFAULT_TIME = "09:00:00"
 
 
@@ -48,6 +50,11 @@ class Orchestrator:
         self.calendar = CalendarService(self.config.data_csv_path)
         self.state = AppState()
         self.last_tick_ms = 0
+        self._pending_delete = {
+            "active": False,
+            "started_at": 0,
+            "target_view": "agenda",
+        }
 
     def run(self) -> int:
         return self._run_curses()
@@ -116,6 +123,7 @@ class Orchestrator:
             ch = stdscr.getch()
             now_ms = int(time.time() * 1000)
             self._maybe_timeout_leader(now_ms)
+            self._maybe_timeout_delete(now_ms)
 
             if ch in (-1, curses.ERR):
                 continue
@@ -206,6 +214,10 @@ class Orchestrator:
             self.state.leader.started_at_ms = int(time.time() * 1000)
             return False
 
+        handled_delete = self._handle_delete_key(ch)
+        if handled_delete is not None:
+            return handled_delete
+
         if ch == KEY_HELP:
             self.state.overlay = "help"
             return True
@@ -218,6 +230,7 @@ class Orchestrator:
                 handled = True
             self.state.overlay = "none"
             self.state.leader.active = False
+            self._pending_delete["active"] = False
             return True if handled or self.state.overlay == "none" else False
 
         if ch == KEY_TODAY:
@@ -246,6 +259,64 @@ class Orchestrator:
         if self.state.leader.active and self.state.leader.started_at_ms:
             if now_ms - self.state.leader.started_at_ms > LEADER_TIMEOUT_MS:
                 self.state.leader.active = False
+
+    def _maybe_timeout_delete(self, now_ms: int) -> None:
+        if self._pending_delete["active"]:
+            if now_ms - self._pending_delete["started_at"] > DELETE_TIMEOUT_MS:
+                self._pending_delete["active"] = False
+
+    def _handle_delete_key(self, ch: int) -> bool | None:
+        if ch != KEY_D:
+            self._pending_delete["active"] = False
+            return None
+
+        now_ms = int(time.time() * 1000)
+        if (
+            self._pending_delete["active"]
+            and now_ms - self._pending_delete["started_at"] <= DELETE_TIMEOUT_MS
+        ):
+            # Second 'd'
+            self._pending_delete["active"] = False
+            return self._perform_delete()
+
+        # First 'd'
+        self._pending_delete["active"] = True
+        self._pending_delete["started_at"] = now_ms
+        self._pending_delete["target_view"] = self.state.view
+        return False
+
+    def _perform_delete(self) -> bool:
+        if self.state.view == "agenda":
+            if not self.state.events:
+                return False
+            target = self.state.events[self.state.agenda_index]
+        elif self.state.view == "month" and self.state.month_focus == "events":
+            month_events = self._month_events_for_selected_date()
+            if not month_events:
+                return False
+            idx = min(self.state.month_event_index, len(month_events) - 1)
+            target = month_events[idx]
+        else:
+            return False
+
+        try:
+            new_events = self.calendar.delete_event(self.state.events, target)
+        except StorageError as exc:
+            self.state.overlay = "error"
+            self.state.overlay_message = f"Storage error: {exc}"
+            return True
+
+        self.state.events = new_events
+        if self.state.view == "agenda":
+            self.state.agenda_index = min(self.state.agenda_index, len(new_events) - 1)
+            if self.state.agenda_index < 0:
+                self.state.agenda_index = 0
+        else:
+            month_events = self._month_events_for_selected_date()
+            self.state.month_event_index = min(
+                self.state.month_event_index, max(len(month_events) - 1, 0)
+            )
+        return True
 
     # Agenda behaviors
     def _handle_agenda_keys(self, ch: int) -> bool:
@@ -417,6 +488,7 @@ class Orchestrator:
                     replace_dt=(original is not None, original),
                 )
             self.state.events = new_events
+            self._pending_delete["active"] = False
             # Rebuild any derived selection indices sensibly
             if self.state.view == "agenda":
                 target_dt = updated_events[0].datetime
