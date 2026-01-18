@@ -174,10 +174,14 @@ class Orchestrator:
             return True
 
         if ch == KEY_ESC:
-            # Cancel overlays/leader
+            # Cancel overlays/leader or exit month events focus
+            handled = False
+            if self.state.view == "month" and self.state.month_focus == "events":
+                self.state.month_focus = "grid"
+                handled = True
             self.state.overlay = "none"
             self.state.leader.active = False
-            return True
+            return True if handled or self.state.overlay == "none" else False
 
         if ch == KEY_TODAY:
             return self._jump_today()
@@ -268,8 +272,7 @@ class Orchestrator:
                 return False
         else:  # focus == events
             if ch == KEY_TAB:
-                self.state.month_focus = "grid"
-                return True
+                return False
             if ch == KEY_J:
                 self.state.month_event_index = view.clamp_event_index(
                     self.state.month_selected_date, self.state.month_event_index + 1
