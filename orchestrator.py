@@ -26,6 +26,7 @@ from keys import (
     KEY_K,
     KEY_L,
     KEY_LEADER,
+    KEY_M,
     KEY_Q,
     KEY_TAB,
     KEY_TODAY,
@@ -174,7 +175,7 @@ class Orchestrator:
                 "dd           delete selected event",
                 "hjkl         navigate (agenda/month)",
                 "Ctrl+h/l     month view: prev/next month",
-                ",a / ,m      switch agenda / month",
+                "m            toggle agenda/month",
                 "Tab          toggle focus (month view)",
                 "Esc          dismiss overlays",
             ]
@@ -199,12 +200,6 @@ class Orchestrator:
         # Leader handling
         if self.state.leader.active:
             self.state.leader.active = False
-            if ch == ord("a"):
-                self.state.view = "agenda"
-                return True
-            if ch == ord("m"):
-                self.state.view = "month"
-                return True
             if ch == ord("n"):
                 return self._edit_or_create(stdscr, force_new=True)
             return True  # unknown leader key just cancels
@@ -213,6 +208,10 @@ class Orchestrator:
             self.state.leader.active = True
             self.state.leader.started_at_ms = int(time.time() * 1000)
             return False
+
+        if ch == KEY_M:
+            self._toggle_view()
+            return True
 
         handled_delete = self._handle_delete_key(ch)
         if handled_delete is not None:
@@ -254,6 +253,22 @@ class Orchestrator:
             return self._handle_agenda_keys(ch)
         else:
             return self._handle_month_keys(ch)
+
+    def _toggle_view(self) -> None:
+        self.state.leader.active = False
+        self.state.leader.started_at_ms = None
+        if self.state.view == "agenda":
+            self.state.view = "month"
+            self.state.month_focus = "grid"
+            self.state.month_event_index = 0
+        else:
+            self.state.view = "agenda"
+            if self.state.events:
+                self.state.agenda_index = min(
+                    self.state.agenda_index, len(self.state.events) - 1
+                )
+            else:
+                self.state.agenda_index = 0
 
     def _maybe_timeout_leader(self, now_ms: int) -> None:
         if self.state.leader.active and self.state.leader.started_at_ms:
