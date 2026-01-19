@@ -22,7 +22,7 @@ class LeaderState:
 
 @dataclass
 class AppState:
-    view: ViewName = "agenda"
+    view: ViewName = "month"
     leader: LeaderState = field(default_factory=LeaderState)
     overlay: OverlayKind = "none"
     overlay_message: str = ""

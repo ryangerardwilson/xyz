@@ -26,7 +26,7 @@ from keys import (
     KEY_K,
     KEY_L,
     KEY_LEADER,
-    KEY_M,
+    KEY_A,
     KEY_Q,
     KEY_TAB,
     KEY_TODAY,
@@ -175,7 +175,7 @@ class Orchestrator:
                 "dd           delete selected event",
                 "hjkl         navigate (agenda/month)",
                 "Ctrl+h/l     month view: prev/next month",
-                "m            toggle agenda/month",
+                "a            toggle agenda/month",
                 "Tab          toggle focus (month view)",
                 "Esc          dismiss overlays",
             ]
@@ -209,7 +209,7 @@ class Orchestrator:
             self.state.leader.started_at_ms = int(time.time() * 1000)
             return False
 
-        if ch == KEY_M:
+        if ch == KEY_A:
             self._toggle_view()
             return True
 
