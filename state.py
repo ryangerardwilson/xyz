@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""App state container for tcal."""
+"""App state container for xyz."""
 
 from __future__ import annotations
 

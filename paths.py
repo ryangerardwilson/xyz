@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""XDG path helpers for tcal."""
+"""XDG path helpers for xyz."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ def xdg_config_home() -> Path:
 
 
 def xdg_data_home() -> Path:
-    return Path(os.environ.get("XDG_DATA_HOME", "~/.tcal")).expanduser()
+    return Path(os.environ.get("XDG_DATA_HOME", "~/.xyz")).expanduser()
 
 
 def ensure_dir(path: Path) -> None:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Calendar-focused data helpers for tcal."""
+"""Calendar-focused data helpers for xyz."""
 
 from __future__ import annotations
 

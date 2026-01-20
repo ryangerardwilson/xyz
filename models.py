@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Core models and validation helpers for tcal."""
+"""Core models and validation helpers for xyz."""
 
 from __future__ import annotations
 

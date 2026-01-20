@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External editor flow for tcal."""
+"""External editor flow for xyz."""
 
 from __future__ import annotations
 

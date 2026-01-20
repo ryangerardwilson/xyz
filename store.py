@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CSV-backed storage for tcal events."""
+"""CSV-backed storage for xyz events."""
 
 from __future__ import annotations
 

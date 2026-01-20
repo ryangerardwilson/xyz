@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Orchestrator for tcal."""
+"""Orchestrator for xyz."""
 
 from __future__ import annotations
 
@@ -162,7 +162,7 @@ class Orchestrator:
     def _render_overlay(self, stdscr: "curses.window") -> None:  # type: ignore[name-defined]
         if self.state.overlay == "help":
             lines = [
-                "tcal shortcuts",
+                "xyz shortcuts",
                 "",
                 "q            quit",
                 "?            toggle this help",

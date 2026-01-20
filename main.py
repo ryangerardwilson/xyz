@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Thin entrypoint for tcal."""
+"""Thin entrypoint for xyz."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ try:
 except Exception:  # pragma: no cover - fallback for source runs
     __version__ = "0.0.0"
 
-INSTALL_URL = "https://raw.githubusercontent.com/ryangerardwilson/tcal/main/install.sh"
+INSTALL_URL = "https://raw.githubusercontent.com/ryangerardwilson/xyz/main/install.sh"
 
 
 def _run_upgrade() -> int:
@@ -52,13 +52,13 @@ def _run_upgrade() -> int:
 
 def _print_help() -> None:
     print(
-        "tcal - terminal-native keyboard-first calendar\n\n"
+        "xyz - terminal-native keyboard-first task tracker\n\n"
         "Usage:\n"
-        "  tcal              Launch curses UI\n"
-        "  tcal -h           Show this help\n"
-        "  tcal -v           Show installed version\n"
-        "  tcal -u           Reinstall latest release if newer exists\n"
-        "  tcal -x \"<YYYY-MM-DD HH:MM[:SS]>\" -y \"<outcome>\" [-z \"<impact>\"]\n"
+        "  xyz              Launch curses UI\n"
+        "  xyz -h           Show this help\n"
+        "  xyz -v           Show installed version\n"
+        "  xyz -u           Reinstall latest release if newer exists\n"
+        "  xyz -x \"<YYYY-MM-DD HH:MM[:SS]>\" -y \"<outcome>\" [-z \"<impact>\"]\n"
     )
 
 
