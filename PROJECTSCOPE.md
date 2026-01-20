@@ -2,7 +2,23 @@
 
 ## 1. Overview
 
-`xyz` is a **Vim-first, terminal-native task tracker** written in Python with `curses`. It focuses on keyboard workflows for inspecting schedules, runs entirely in the terminal, and supports deterministic CLI commands built around x/y/z tasks. Tasks are defined by three fields: trigger `x` (timestamp), outcome `y`, and impact `z` (optional).
+`xyz` is a **Vim-first, terminal-native task tracker** written in Python with `curses`. It focuses on keyboard workflows for inspecting schedules, runs entirely in the terminal, and supports deterministic CLI commands built around x/y/z tasks. Tasks are defined by three required fields that mirror an outcome-oriented Jobs-to-Be-Done (JTBD) statement: trigger `x` (context), outcome `y`, and impact `z` (why it matters).
+
+### JTBD philosophy & non-linear intent
+
+The product deliberately reframes every task from *"what should the system do?"* to *"When X happens, I want Y outcome so I can Z."* This wording forces everyone—product, ops, comms, engineering—to prioritize user progress over implementation details:
+
+- **X (trigger/context)** keeps each job rooted in a real situation without presuming a tool.
+- **Y (desired progress/outcome)** captures the functional or emotional advancement the user seeks, independent of any feature.
+- **Z (why it matters/value/impact)** surfaces the deeper motivation (efficiency, status, risk reduction), which is essential for differentiation.
+
+By avoiding verbs that describe *how* the system behaves ("send", "track", "notify"), xyz stays decoupled from specific solutions long enough to discover non-obvious, non-linear leaps. This makes the tracker function more like a "non-linear to-do list": instead of enumerating tasks in order, it anchors planning on outcomes and value. The payoff:
+
+- **Better innovation** – teams can explore multiple ways to satisfy Y and Z instead of iterating on the current UI surface.
+- **Cross-functional alignment** – strategy, messaging, and operations share the same outcome vocabulary.
+- **High-leverage prioritization** – Z highlights where minimal effort can generate outsized gains, supporting non-linear goals like exponential adoption or dramatic ROI jumps.
+
+When users capture tasks in xyz, they're effectively articulating JTBD statements that expose both the immediate trigger and the downstream reason it matters, which keeps the entire workflow oriented around meaningful progress.
 
 ---
 

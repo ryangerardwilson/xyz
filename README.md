@@ -49,6 +49,18 @@ If you’d rather run directly from the repo (handy for development or non-Linux
 
 ---
 
+## Outcome-first JTBD philosophy
+
+xyz treats every entry as a refined Jobs-to-Be-Done statement: *"When X happens, I want Y outcome so I can Z."* That framing, rooted in Clayton Christensen’s JTBD theory, keeps planning focused on the progress users hire tools to make—not on the mechanics of any specific feature. Each field in the app maps directly to that structure:
+
+- **X (trigger/context)** grounds the job in a real moment so tasks remain situational, not hypothetical.
+- **Y (desired progress/outcome)** expresses the advancement the user needs, free from solution verbs like “send” or “track.”
+- **Z (why it matters/value/impact)** surfaces the deeper motivation (reduce stress, earn trust, hit a KPI), guiding prioritization toward high-leverage bets.
+
+By enforcing this outcome-first language, xyz behaves more like a non-linear to-do system: you start with the value you need to create, then explore multiple ways to realize it. That mindset unlocks non-obvious solutions, aligns cross-functional teams on user value, and steers roadmap decisions toward compounding results instead of incremental busywork.
+
+---
+
 ## Requirements
 
 - Python 3.11+
