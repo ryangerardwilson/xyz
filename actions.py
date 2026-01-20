@@ -41,14 +41,26 @@ def _missing_components(event: Event) -> list[str]:
     return missing
 
 
+def _infer_impact_clause(outcome: str) -> str:
+    lower = outcome.lower()
+    if any(word in lower for word in ["cook", "cooking", "meal", "kitchen"]):
+        return "serve affordable, nutritious meals for myself and friends"
+    if any(word in lower for word in ["study", "learn", "learning", "exam", "course", "class"]):
+        return "confidently tackle advanced coursework and related opportunities"
+    if any(word in lower for word in ["exercise", "fitness", "run", "workout", "train"]):
+        return "build long-term health, energy, and resilience"
+    return "unlock new opportunities and turn this effort into tangible momentum"
+
+
 def _format_missing_component_message(event: Event, missing: list[str]) -> str:
     trigger_human = event.x.strftime("%B %d, %Y") if getattr(event, "x", None) else "a clear date"
     trigger_exact = event.x.strftime("%Y-%m-%d %H:%M:%S") if getattr(event, "x", None) else "(unspecified)"
     outcome = event.y.strip() or "finish this task"
     missing_list = ", ".join(missing)
+    impact_clause = _infer_impact_clause(outcome)
     suggestion = (
         f"\"When {trigger_human} arrives, I want to {outcome.lower()} "
-        "so I can explain the impact (e.g., unlock advanced opportunities or responsibilities).\""
+        f"so I can {impact_clause}.\""
     )
     return (
         "Task not created: the natural-language CLI requires x (trigger), y (outcome), and z (impact).\n"
