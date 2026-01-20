@@ -61,9 +61,10 @@ jobs:
               "$PYBIN" -m pip install --only-binary=:all: -r requirements.txt
               "$PYBIN" -m pip install --only-binary=:all: pyinstaller
               echo "__version__ = \"${VERSION}\"" > _version.py
-              "$PYBIN" -m PyInstaller --clean --onedir --name tcal \
-                main.py
-              tar -C dist -czf tcal-linux-x64.tar.gz tcal
+               "$PYBIN" -m PyInstaller --clean --onedir --name xyz \
+                 main.py
+               tar -C dist -czf xyz-linux-x64.tar.gz xyz
+
             '
 
       - name: Create release and upload asset
@@ -71,6 +72,6 @@ jobs:
         with:
           tag_name: ${{ env.TAG }}
           files: |
-            tcal-linux-x64.tar.gz
+            xyz-linux-x64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

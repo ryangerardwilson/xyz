@@ -1,6 +1,6 @@
-# tcal
+# xyz
 
-`tcal` is a vim-first, terminal-native task tracker for people who keep their hands on the keyboard. It offers fast month/agenda navigation, external editing via your terminal editor, and a deterministic CLI for scripting x/y/z tasks.
+`xyz` is a vim-first, terminal-native task tracker for people who keep their hands on the keyboard. It offers fast month/agenda navigation, external editing via your terminal editor, and a deterministic CLI for scripting x/y/z tasks.
 
 ---
 
@@ -8,13 +8,13 @@
 
 ### Prebuilt binary (Linux x86_64)
 
-`tcal` publishes PyInstaller bundles with each GitHub release. The quickest way to install the latest release is via the helper script:
+`xyz` publishes PyInstaller bundles with each GitHub release. The quickest way to install the latest release is via the helper script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/tcal/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/xyz/main/install.sh | bash
 ```
 
-The script downloads the `tcal-linux-x64.tar.gz` artifact, extracts it into `~/.tcal/app`, and drops a shim in `~/.tcal/bin`. It will attempt to add that directory to your `PATH` (unless you opt out) so you can just run `tcal` from any shell.
+The script downloads the `xyz-linux-x64.tar.gz` artifact, extracts it into `~/.xyz/app`, and drops a shim in `~/.xyz/bin`. It will attempt to add that directory to your `PATH` (unless you opt out) so you can just run `xyz` from any shell.
 
 Installer flags of note:
 
@@ -26,8 +26,8 @@ Installer flags of note:
 
 Once installed, the binary itself also supports:
 
-- `tcal -v` to print the installed version
-- `tcal -u` to reinstall via the latest installer script if a newer release exists
+- `xyz -v` to print the installed version
+- `xyz -u` to reinstall via the latest installer script if a newer release exists
 
 You can also download the archive directly from the releases page and run `install.sh --binary` if you prefer.
 
@@ -65,17 +65,17 @@ python main.py -x "2026-01-26 00:00" -y "learned to cook pasta" -z "throw a nice
 
 ## Configuration
 
-`tcal` looks for `$XDG_CONFIG_HOME/tcal/config.json` (fallback `~/.config/tcal/config.json`). Trailing commas are tolerated.
+`xyz` looks for `$XDG_CONFIG_HOME/xyz/config.json` (fallback `~/.config/xyz/config.json`). Trailing commas are tolerated.
 
 Example config:
 
 ```json
 {
-  "data_csv_path": "/home/example/.local/share/tcal/events.csv"
+  "data_csv_path": "/home/example/.local/share/xyz/events.csv"
 }
 ```
 
-- `data_csv_path` (optional) overrides where tasks are stored. Defaults to `$XDG_DATA_HOME/tcal/event.csv` (fallback `~/.tcal/event.csv`).
+- `data_csv_path` (optional) overrides where tasks are stored. Defaults to `$XDG_DATA_HOME/xyz/event.csv` (fallback `~/.xyz/event.csv`).
 
 The config loader ensures parent directories exist and will fall back gracefully if fields are missing.
 
@@ -128,7 +128,7 @@ Leader sequences time out after 1 second.
 ## Troubleshooting
 
 - **Invalid JSON in config**: Trailing commas are auto-stripped; otherwise the loader falls back to defaults.
-- **Editor errors**: If `$EDITOR` exits non-zero or the JSON fails validation, tcal shows an overlay and discards changes.
+- **Editor errors**: If `$EDITOR` exits non-zero or the JSON fails validation, xyz shows an overlay and discards changes.
 
 ---
 
@@ -150,4 +150,4 @@ All modules live in a flat repo structure for now.
 - Python 3.11+
 - Pure stdlib dependencies (`curses`, `csv`, `json`, etc.)
 
-Feel free to open issues or PRs with new view ideas (week/day), ICS export support, or other workflow improvements.
+Feel free to open issues or PRs with new view ideas (week/day), ICS export support, or other workflow improvements for xyz.

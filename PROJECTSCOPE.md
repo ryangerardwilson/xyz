@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-`tcal` is a **Vim-first, terminal-native task tracker** written in Python with `curses`. It focuses on keyboard workflows for inspecting schedules, runs entirely in the terminal, and supports deterministic CLI commands built around x/y/z tasks. Tasks are defined by three fields: trigger `x` (timestamp), outcome `y`, and impact `z` (optional).
+`xyz` is a **Vim-first, terminal-native task tracker** written in Python with `curses`. It focuses on keyboard workflows for inspecting schedules, runs entirely in the terminal, and supports deterministic CLI commands built around x/y/z tasks. Tasks are defined by three fields: trigger `x` (timestamp), outcome `y`, and impact `z` (optional).
 
 ---
 
@@ -14,8 +14,8 @@
 - **Thin entrypoint** – `main.py` must stay tiny.
 - **Central orchestrator** – `orchestrator.py` handles CLI parsing, curses lifecycle, structured CLI handling, and the between-view policy.
 - **Flat layout** – small modules at repo root (`calendar_service.py`, etc.).
-- **XDG-friendly config** – `$XDG_CONFIG_HOME/tcal/config.json` (fallback `~/.config/tcal/config.json`).
-- **Inspectable storage** – tasks stored in a CSV with x/y/z columns (default `$XDG_DATA_HOME/tcal/event.csv`, fallback `~/.tcal/event.csv`).
+- **XDG-friendly config** – `$XDG_CONFIG_HOME/xyz/config.json` (fallback `~/.config/xyz/config.json`).
+- **Inspectable storage** – tasks stored in a CSV with x/y/z columns (default `$XDG_DATA_HOME/xyz/event.csv`, fallback `~/.xyz/event.csv`).
 - **Safe terminal handling** – always restore terminal state on exit.
 - **Deterministic x/y/z flow** – CLI, TUI, and storage all share the same three-field contract.
 
@@ -85,11 +85,11 @@ Natural-language assistants are currently out-of-scope; the CLI focuses on deter
 
 ### Config (`config.json`)
 - Fields: `data_csv_path` (optional). Trailing commas tolerated.
-- Default data path: `$XDG_DATA_HOME/tcal/event.csv` (fallback `~/.tcal/event.csv`).
+- Default data path: `$XDG_DATA_HOME/xyz/event.csv` (fallback `~/.xyz/event.csv`).
 - Example:
   ```json
   {
-    "data_csv_path": "/home/example/.local/share/tcal/event.csv"
+    "data_csv_path": "/home/example/.local/share/xyz/event.csv"
   }
   ```
 
@@ -151,7 +151,7 @@ Leader sequences may expand (week/day views) post-v0.
 ### Medium-term
 - Add week/day views (` ,w `/` ,d `) reusing Agenda/Month patterns.
 - Provide ICS export/import utilities.
-- Expand CLI ergonomics (bulk operations, templates, etc.).
+- Expand CLI ergonomics (bulk operations, templates, etc.) for xyz.
 - Expose configurable keybindings via config.
 
 ### Deferred

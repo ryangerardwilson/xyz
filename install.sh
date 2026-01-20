@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP=tcal
-REPO="ryangerardwilson/tcal"
+APP=xyz
+REPO="ryangerardwilson/xyz"
 APP_HOME="$HOME/.${APP}"
 INSTALL_DIR="$APP_HOME/bin"
 APP_DIR="$APP_HOME/app"
@@ -14,7 +14,7 @@ NC='\033[0m'
 
 usage() {
   cat <<EOF
-${APP} Installer
+${APP^^} Installer
 
 Usage: install.sh [options]
 
@@ -101,7 +101,7 @@ mkdir -p "$INSTALL_DIR"
 
 if [[ -n "$binary_path" ]]; then
   [[ -f "$binary_path" ]] || die "Binary not found: $binary_path"
-  info "Installing ${APP} from local binary"
+  info "Installing ${APP^^} from local binary"
   mkdir -p "$APP_DIR"
   cp "$binary_path" "$INSTALL_DIR/$APP"
   chmod 755 "$INSTALL_DIR/$APP"
@@ -135,7 +135,7 @@ else
     fi
   fi
 
-  info "Installing ${APP} version ${version_label}"
+  info "Installing ${APP^^} version ${version_label}"
   tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/${APP}.XXXXXX")
   curl -# -L -o "$tmp_dir/$FILENAME" "$url"
   tar -xzf "$tmp_dir/$FILENAME" -C "$tmp_dir"
@@ -169,8 +169,8 @@ maybe_add_path() {
     if grep -Fq "$command" "$rc" 2>/dev/null; then
       return
     fi
-    printf '\n# %s\n%s\n' "$APP" "$command" >> "$rc"
-    info "Added ${APP} to PATH in $rc"
+    printf '\n# %s\n%s\n' "${APP^^}" "$command" >> "$rc"
+    info "Added ${APP^^} to PATH in $rc"
     return
   done
   info "Add to PATH manually: $command"
@@ -184,5 +184,5 @@ if ! $no_modify_path && [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
   fi
 fi
 
-info "Installed ${APP} (${installed_label:-unknown}) to $INSTALL_DIR/$APP"
+info "Installed ${APP^^} (${installed_label:-unknown}) to $INSTALL_DIR/$APP"
 info "Run: ${APP} --help"
