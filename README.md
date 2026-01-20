@@ -105,7 +105,7 @@ python main.py "show all tasks next week"
 
 Supported intents (still named `create_event`/`list_events`/`reschedule_event` in code for now) map to the task fields `x` (timestamp trigger), `y` (outcome), and `z` (impact):
 
-- `create_event`: add a new task with x/y/z (z optional)
+- `create_event`: add a new task with x/y/z (all required for the CLI path; missing any component triggers a rejection with suggested rephrasing)
 - `list_events`: show tasks for `today`, `tomorrow`, `this_week`, `next_month`, `all`, etc., optionally filtered by keywords (matching y or z)
 - `reschedule_event`: move a task to a new absolute x or shift its x by a relative amount (`relative_amount` + `relative_unit` like days/hours/weeks)
 

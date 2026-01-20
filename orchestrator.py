@@ -143,7 +143,7 @@ class Orchestrator:
     def _draw(self, stdscr: "curses.window") -> None:  # type: ignore[name-defined]
         stdscr.erase()
 
-        footer = "? help — x=trigger y=outcome z=impact"
+        footer = "? help — x=trigger y=outcome z=impact (CLI requires all)"
         draw_footer(stdscr, footer)
 
         if self.state.view == "agenda":

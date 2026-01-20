@@ -96,7 +96,7 @@ Natural-language assistants **are now in-scope** when using structured outputs/t
   ```
 
 ### Storage
-- CSV columns: `x` (timestamp trigger, YYYY-MM-DD HH:MM:SS), `y` (task outcome), `z` (impact, optional for now).
+- CSV columns: `x` (timestamp trigger, YYYY-MM-DD HH:MM:SS), `y` (task outcome), `z` (impact; all three required for new CLI-created tasks).
 - `calendar_service.delete_event` removes exact matches; `upsert_event` handles replacements.
 
 ### External edit contract

@@ -30,20 +30,53 @@ class ActionError(Exception):
     pass
 
 
+def _missing_components(event: Event) -> list[str]:
+    missing: list[str] = []
+    if not getattr(event, "x", None):
+        missing.append("x (trigger)")
+    if not event.y.strip():
+        missing.append("y (outcome)")
+    if not event.z.strip():
+        missing.append("z (impact)")
+    return missing
+
+
+def _format_missing_component_message(event: Event, missing: list[str]) -> str:
+    trigger_human = event.x.strftime("%B %d, %Y") if getattr(event, "x", None) else "a clear date"
+    trigger_exact = event.x.strftime("%Y-%m-%d %H:%M:%S") if getattr(event, "x", None) else "(unspecified)"
+    outcome = event.y.strip() or "finish this task"
+    missing_list = ", ".join(missing)
+    suggestion = (
+        f"\"When {trigger_human} arrives, I want to {outcome.lower()} "
+        "so I can explain the impact (e.g., unlock advanced opportunities or responsibilities).\""
+    )
+    return (
+        "Task not created: the natural-language CLI requires x (trigger), y (outcome), and z (impact).\n"
+        f"Missing component(s): {missing_list}.\n"
+        f"Parsed x = {trigger_exact}, y = '{event.y}'.\n"
+        "Please include the missing pieces in your request.\n"
+        f"Suggested rephrase: {suggestion}"
+    )
+
+
 def handle_create_event(
     intent: CreateEventIntent,
     calendar: CalendarService,
     *,
     existing_events: List[Event],
 ) -> ActionResult:
+    created = intent.event
+    missing = _missing_components(created)
+    if missing:
+        return ActionResult(success=False, message=_format_missing_component_message(created, missing))
+
     try:
-        updated = calendar.upsert_event(existing_events, intent.event)
+        updated = calendar.upsert_event(existing_events, created)
     except ValidationError as exc:
         return ActionResult(success=False, message=f"Validation error: {exc}")
     except StorageError as exc:
         return ActionResult(success=False, message=f"Storage error: {exc}")
 
-    created = intent.event
     impact_suffix = f" with impact '{created.z}'" if created.z else ""
     return ActionResult(
         success=True,
