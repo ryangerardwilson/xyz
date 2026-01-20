@@ -123,6 +123,7 @@ The executor validates OpenAI responses against JSON Schema and surfaces errors 
 | `t`            | global | Jump to today |
 | `a`            | global | Toggle between Month / Agenda views |
 | `i`            | view (item) | Edit/create via `$EDITOR` (x/y/z) |
+| `n`            | agenda + month tasks | Create a new event |
 | `dd`           | agenda + month tasks | Delete selected task |
 | `Ctrl+h` / `Ctrl+l` | month view | Previous / next month |
 | `Ctrl+j` / `Ctrl+k` | month view | Next / previous year |

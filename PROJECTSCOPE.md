@@ -9,7 +9,7 @@
 ## 2. Core Design Principles
 
 - **Terminal-native UI** – pure `curses`; no GUI toolkits.
-- **Direct view toggling** – single-key `a` flips between agenda and month views; leader remains available for future chords.
+- **Direct view toggling** – single-key `a` flips between agenda and month views; leader remains available for future chords (currently unused).
 - **External editing via Vim** – pressing `i` dumps the selected task (x/y/z) to JSON, opens `$EDITOR` (default `vim`), then re-imports the edited JSON.
 - **Thin entrypoint** – `main.py` must stay tiny.
 - **Central orchestrator** – `orchestrator.py` handles CLI parsing, curses lifecycle, NL CLI entry, and the between-view policy.
@@ -107,7 +107,7 @@ Natural-language assistants **are now in-scope** when using structured outputs/t
 ## 7. Interaction & Modes
 
 - **Normal mode**: default navigation state.
-- **View toggle**: `a` flips between agenda and month instantly; leader remains for future sequences (e.g., `,n` for new).
+- **View toggle**: `a` flips between agenda and month instantly; leader remains for potential future sequences (currently unused).
 - **Insert/Edit (external)**: triggered by `i`, leaves curses, opens `$EDITOR`, returns with updated tasks (x/y/z).
 - **Delete pending state**: first `d` arms deletion, second `d` confirms.
 
@@ -122,6 +122,7 @@ Natural-language assistants **are now in-scope** when using structured outputs/t
 | `t`            | global | Jump to today |
 | `a`            | global | Toggle Month / Agenda views |
 | `i`            | view (item) | Edit/create via `$EDITOR` |
+| `n`            | agenda + month events | Create a new event |
 | `dd`           | agenda + month events | Delete selected event |
 | `Ctrl+h` / `Ctrl+l` | month view | Previous / next month |
 | `Ctrl+j` / `Ctrl+k` | month view | Next / previous year |

@@ -27,6 +27,7 @@ from keys import (
     KEY_L,
     KEY_LEADER,
     KEY_A,
+    KEY_N,
     KEY_Q,
     KEY_TAB,
     KEY_TODAY,
@@ -203,14 +204,15 @@ class Orchestrator:
         # Leader handling
         if self.state.leader.active:
             self.state.leader.active = False
-            if ch == ord("n"):
-                return self._edit_or_create(stdscr, force_new=True)
-            return True  # unknown leader key just cancels
+            return True  # leader currently unused
 
         if ch == KEY_LEADER:
             self.state.leader.active = True
             self.state.leader.started_at_ms = int(time.time() * 1000)
             return False
+
+        if ch == KEY_N:
+            return self._edit_or_create(stdscr, force_new=True)
 
         if ch == KEY_A:
             self._toggle_view()
