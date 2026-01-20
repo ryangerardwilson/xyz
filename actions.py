@@ -62,13 +62,18 @@ def _format_missing_component_message(event: Event, missing: list[str]) -> str:
         f"\"When {trigger_human} arrives, I want to {outcome.lower()} "
         f"so I can {impact_clause}.\""
     )
-    return (
-        "Task not created: the natural-language CLI requires x (trigger), y (outcome), and z (impact).\n"
-        f"Missing component(s): {missing_list}.\n"
-        f"Parsed x = {trigger_exact}, y = '{event.y}'.\n"
-        "Please include the missing pieces in your request.\n"
-        f"Suggested rephrase: {suggestion}"
-    )
+    lines = [
+        "-------------------------------------",
+        "Task not created (missing components)",
+        "-------------------------------------",
+        f"• Missing: {missing_list}",
+        f"• Parsed:",
+        f"    x = {trigger_exact}",
+        f"    y = '{event.y}'",
+        "• Suggested rephrase:",
+        f"    {suggestion}",
+    ]
+    return "\n".join(lines)
 
 
 def handle_create_event(
