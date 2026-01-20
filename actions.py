@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Iterable, List
@@ -145,10 +146,15 @@ def handle_create_event(
     except StorageError as exc:
         return ActionResult(success=False, message=f"Storage error: {exc}")
 
-    impact_suffix = f" with impact '{created.z}'" if created.z else ""
+    payload = {
+        "x": created.x.strftime("%Y-%m-%d %H:%M:%S"),
+        "y": created.y,
+        "z": created.z,
+    }
+    pretty = json.dumps(payload, indent=2)
     return ActionResult(
         success=True,
-        message=f"Created task '{created.y}' at {created.x}{impact_suffix}",
+        message=f"Task created:\n{pretty}",
         events=updated,
     )
 
