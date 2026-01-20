@@ -7,6 +7,8 @@ import os
 import subprocess
 import sys
 from typing import Sequence
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 from models import ValidationError
 from orchestrator import Orchestrator
@@ -17,9 +19,50 @@ except Exception:  # pragma: no cover - fallback for source runs
     __version__ = "0.0.0"
 
 INSTALL_URL = "https://raw.githubusercontent.com/ryangerardwilson/xyz/main/install.sh"
+LATEST_RELEASE_API = "https://api.github.com/repos/ryangerardwilson/xyz/releases/latest"
+
+
+def _version_tuple(value: str) -> tuple[int, ...]:
+    sanitized = value.strip().lower().lstrip("v")
+    parts = []
+    for chunk in sanitized.split("."):
+        try:
+            parts.append(int(chunk))
+        except ValueError:
+            break
+    return tuple(parts)
+
+
+def _fetch_latest_version() -> str | None:
+    try:
+        req = Request(
+            LATEST_RELEASE_API,
+            headers={"Accept": "application/vnd.github+json"},
+        )
+        with urlopen(req, timeout=10) as resp:  # nosec B310
+            payload = resp.read()
+    except (URLError, TimeoutError):
+        return None
+    try:
+        import json
+
+        data = json.loads(payload)
+    except Exception:
+        return None
+    tag = data.get("tag_name")
+    if isinstance(tag, str) and tag.strip():
+        return tag.strip().lstrip("v")
+    return None
 
 
 def _run_upgrade() -> int:
+    latest_version = _fetch_latest_version()
+    if latest_version:
+        current_tuple = _version_tuple(__version__)
+        latest_tuple = _version_tuple(latest_version)
+        if current_tuple and latest_tuple and current_tuple >= latest_tuple:
+            print(f"xyz is already up to date (version {__version__}).")
+            return 0
     try:
         curl = subprocess.Popen(
             ["curl", "-fsSL", INSTALL_URL], stdout=subprocess.PIPE, stderr=subprocess.PIPE
