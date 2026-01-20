@@ -85,13 +85,17 @@ def _format_missing_component_message(
             return ""
         return event.z.strip()
 
+    parsed: dict[str, str] = {}
+    if "x (trigger)" not in missing:
+        parsed["x"] = _format_x_value()
+    if "y (outcome)" not in missing:
+        parsed["y"] = _format_y_value()
+    if "z (impact)" not in missing:
+        parsed["z"] = _format_z_value()
+
     payload = {
         "missing": _normalize_missing(missing),
-        "parsed": {
-            "x": _format_x_value(),
-            "y": _format_y_value(),
-            "z": _format_z_value(),
-        },
+        "parsed": parsed,
     }
     return json.dumps(payload, indent=2)
 
