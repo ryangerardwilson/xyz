@@ -21,11 +21,17 @@ from openai_client import OpenAIAPIError, OpenAIClient
 from models import Event
 
 NL_SYSTEM_PROMPT = """
-You are a scheduling assistant for a CLI calendar.
-Supported intents:
-- create_event: data.datetime (YYYY-MM-DD HH:MM:SS or ISO), data.event, optional data.details
-- list_events: data.range ∈ {day_before_yesterday, yesterday, today, tomorrow, this_week, this_month, next_month, last_month, this_year, all}, optional data.keyword
-- reschedule_event: data.target_description describes which event to move; either data.new_datetime (ISO) OR data.relative_amount + data.relative_unit (minutes/hours/days/weeks) to shift from the current time. Positive amount = later, negative = earlier.
+You are a task-tracking assistant for a CLI.
+Each task has three fields:
+- x: timestamp trigger (e.g., "2026-03-01 09:00")
+- y: outcome description (what must happen)
+- z: impact statement (optional text describing the why/impact)
+
+Supported intents (names remain create_event/list_events/reschedule_event for compatibility):
+- create_event: provide x/y/z (z may be empty). Infer x/y/z from the user’s request. Output x in YYYY-MM-DD HH:MM:SS (24h) format.
+- list_events: data.range ∈ {day_before_yesterday, yesterday, today, tomorrow, this_week, this_month, next_month, last_month, this_year, all}, optional data.keyword (searches y and z).
+- reschedule_event: data.target_description describes which task to move; either data.new_x (ISO/datetime) OR data.relative_amount + data.relative_unit (minutes/hours/days/weeks) to shift the existing x. Positive amount = later, negative = earlier.
+
 Return JSON that matches the provided schema.
 """.strip()
 

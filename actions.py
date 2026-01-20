@@ -43,9 +43,11 @@ def handle_create_event(
     except StorageError as exc:
         return ActionResult(success=False, message=f"Storage error: {exc}")
 
+    created = intent.event
+    impact_suffix = f" with impact '{created.z}'" if created.z else ""
     return ActionResult(
         success=True,
-        message=f"Created event '{intent.event.event}' at {intent.event.datetime}",
+        message=f"Created task '{created.y}' at {created.x}{impact_suffix}",
         events=updated,
     )
 
@@ -82,23 +84,23 @@ def handle_reschedule_event(
 ) -> ActionResult:
     matches = _match_events(existing_events, intent.target_description)
     if not matches:
-        return ActionResult(False, f"No events found matching '{intent.target_description}'.")
+        return ActionResult(False, f"No tasks found matching '{intent.target_description}'.")
     if len(matches) > 1:
-        options = ", ".join(f"{ev.event} ({ev.datetime:%Y-%m-%d %H:%M})" for ev in matches[:5])
+        options = ", ".join(f"{ev.y} ({ev.x:%Y-%m-%d %H:%M})" for ev in matches[:5])
         if len(matches) > 5:
             options += ", …"
-        return ActionResult(False, f"Multiple events match '{intent.target_description}': {options}")
+        return ActionResult(False, f"Multiple tasks match '{intent.target_description}': {options}")
 
     original = matches[0]
 
     if intent.new_datetime:
         new_dt = intent.new_datetime
     elif intent.relative_adjustment:
-        new_dt = _apply_relative_adjustment(original.datetime, intent.relative_adjustment)
+        new_dt = _apply_relative_adjustment(original.x, intent.relative_adjustment)
     else:
-        return ActionResult(False, "No new datetime provided for reschedule.")
+        return ActionResult(False, "No new trigger (x) provided for reschedule.")
 
-    updated_event = original.with_updated(dt=new_dt)
+    updated_event = original.with_updated(x=new_dt)
 
     try:
         updated_events = calendar.upsert_event(
@@ -113,7 +115,7 @@ def handle_reschedule_event(
     if intent.relative_adjustment and not intent.new_datetime:
         verb = "Adjusted"
     message = (
-        f"{verb} '{original.event}' from {original.datetime:%Y-%m-%d %H:%M}"
+        f"{verb} '{original.y}' from {original.x:%Y-%m-%d %H:%M}"
         f" to {new_dt:%Y-%m-%d %H:%M}."
     )
     return ActionResult(True, message, events=updated_events)
@@ -124,7 +126,7 @@ def _match_events(events: Iterable[Event], description: str) -> List[Event]:
     matches = [
         ev
         for ev in events
-        if needle in ev.event.lower() or needle in ev.details.lower()
+        if needle in ev.y.lower() or needle in ev.z.lower()
     ]
     return matches
 
@@ -150,22 +152,22 @@ def _format_event_list(
     events = list(events)
     if not events:
         if keyword:
-            return f"No events found for {range_name.replace('_', ' ')} matching '{keyword}'."
-        return f"No events found for {range_name.replace('_', ' ')}."
+            return f"No tasks found for {range_name.replace('_', ' ')} matching '{keyword}'."
+        return f"No tasks found for {range_name.replace('_', ' ')}."
 
-    header = f"{range_name.replace('_', ' ').title()} events"
+    header = f"{range_name.replace('_', ' ').title()} tasks"
     if keyword:
         header += f" matching '{keyword}'"
     header += f" ({len(events)})"
 
     lines = [header]
     for ev in events[:10]:
+        impact = f" — {ev.z}" if ev.z else ""
         lines.append(
-            f"- {ev.datetime.strftime('%Y-%m-%d %H:%M')} {ev.event}" +
-            (f" — {ev.details}" if ev.details else "")
+            f"- {ev.x.strftime('%Y-%m-%d %H:%M')} {ev.y}{impact}"
         )
     if len(events) > 10:
-        lines.append(f"…and {len(events) - 10} more events")
+        lines.append(f"…and {len(events) - 10} more tasks")
     return "\n".join(lines)
 
 

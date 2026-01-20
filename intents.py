@@ -43,13 +43,13 @@ INTENT_JSON_SCHEMA = {
             "data": {
                 "type": "object",
                 "properties": {
-                    "datetime": {"type": "string"},
-                    "event": {"type": "string"},
-                    "details": {"type": "string"},
+                    "x": {"type": "string"},
+                    "y": {"type": "string"},
+                    "z": {"type": "string"},
                     "range": {"type": "string", "enum": VALID_RANGE_VALUES},
                     "keyword": {"type": "string"},
                     "target_description": {"type": "string"},
-                    "new_datetime": {"type": "string"},
+                    "new_x": {"type": "string"},
                     "relative_amount": {"type": "integer"},
                     "relative_unit": {
                         "type": "string",
@@ -130,7 +130,7 @@ def parse_intent_payload(payload: Dict[str, Any]) -> Intent:
         if not isinstance(target_description, str) or not target_description.strip():
             raise IntentParseError("target_description must be a non-empty string")
 
-        new_datetime_value = data.get("new_datetime")
+        new_datetime_value = data.get("new_x", data.get("new_datetime"))
         relative_amount = data.get("relative_amount")
         relative_unit = data.get("relative_unit")
 
@@ -147,10 +147,10 @@ def parse_intent_payload(payload: Dict[str, Any]) -> Intent:
             relative_adjustment = RelativeAdjustment(amount=relative_amount, unit=relative_unit)
 
         if not new_dt and not relative_adjustment:
-            raise IntentParseError("reschedule intent requires new_datetime or relative adjustment")
+            raise IntentParseError("reschedule intent requires new trigger (x) or relative adjustment")
 
         if new_dt and relative_adjustment:
-            # Prefer absolute datetime if both provided
+            # Prefer absolute trigger if both provided
             relative_adjustment = None
 
         return RescheduleEventIntent(

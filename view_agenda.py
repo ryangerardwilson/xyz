@@ -21,10 +21,11 @@ class AgendaView:
 
         lines: List[str] = []
         for ev in self.events:
-            ts = ev.datetime.strftime("%Y-%m-%d %H:%M")
-            lines.append(f"{ts}  {ev.event}")
+            ts = ev.x.strftime("%Y-%m-%d %H:%M")
+            impact = f" — {ev.z}" if ev.z else ""
+            lines.append(f"{ts}  {ev.y}{impact}")
         if not lines:
-            lines = ["No events yet. Press i to create."]
+            lines = ["No tasks yet. Press i to create."]
 
         # Clamp selection and ensure scroll keeps it visible
         selected_idx = clamp(selected_idx, 0, max(0, len(lines) - 1))
@@ -60,7 +61,7 @@ class AgendaView:
             return 0
         today = datetime.today()
         for idx, ev in enumerate(self.events):
-            if ev.datetime >= today:
+            if ev.x >= today:
                 return idx
         return len(self.events) - 1
 

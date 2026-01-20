@@ -34,9 +34,9 @@ class CalendarService:
     ) -> List[Event]:
         filtered = []
         for ev in events:
-            if start and ev.datetime < start:
+            if start and ev.x < start:
                 continue
-            if end and ev.datetime > end:
+            if end and ev.x > end:
                 continue
             filtered.append(ev)
         return filtered
@@ -47,7 +47,7 @@ class CalendarService:
         return [
             ev
             for ev in events
-            if needle in ev.event.lower() or needle in ev.details.lower()
+            if needle in ev.y.lower() or needle in ev.z.lower()
         ]
 
     def upsert_event(
@@ -71,9 +71,9 @@ class CalendarService:
             ev
             for ev in events
             if not (
-                ev.datetime == target.datetime
-                and ev.event == target.event
-                and ev.details == target.details
+                ev.x == target.x
+                and ev.y == target.y
+                and ev.z == target.z
             )
         ]
         save_events(self._data_path, remaining)

@@ -12,21 +12,21 @@ DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 
 @dataclass
 class Event:
-    datetime: datetime
-    event: str
-    details: str = ""
+    x: datetime  # Timestamp trigger
+    y: str       # Outcome description
+    z: str = ""  # Impact (optional for now)
 
     def with_updated(
         self,
         *,
-        dt: Optional[datetime] = None,
-        event: Optional[str] = None,
-        details: Optional[str] = None,
+        x: Optional[datetime] = None,
+        y: Optional[str] = None,
+        z: Optional[str] = None,
     ) -> "Event":
         return Event(
-            datetime=dt if dt is not None else self.datetime,
-            event=event if event is not None else self.event,
-            details=details if details is not None else self.details,
+            x=x if x is not None else self.x,
+            y=y if y is not None else self.y,
+            z=z if z is not None else self.z,
         )
 
 
@@ -59,23 +59,28 @@ def parse_datetime(value: str) -> datetime:
 
 
 def normalize_event_payload(data: dict) -> Event:
-    if "datetime" not in data or "event" not in data:
-        raise ValidationError("Missing 'datetime' or 'event' field")
+    # Accept legacy keys but prefer x/y/z going forward
+    x_value = data.get("x", data.get("datetime"))
+    y_value = data.get("y", data.get("event"))
+    z_value = data.get("z", data.get("details", ""))
 
-    dt = parse_datetime(str(data["datetime"]))
-    ev = str(data["event"]).strip()
-    if not ev:
-        raise ValidationError("'event' cannot be empty")
+    if x_value is None or y_value is None:
+        raise ValidationError("Missing 'x' (datetime) or 'y' (outcome) field")
 
-    details = str(data.get("details", ""))
-    return Event(datetime=dt, event=ev, details=details)
+    dt = parse_datetime(str(x_value))
+    outcome = str(y_value).strip()
+    if not outcome:
+        raise ValidationError("'y' (outcome) cannot be empty")
+
+    impact = str(z_value)
+    return Event(x=dt, y=outcome, z=impact)
 
 
 def event_to_jsonable(event: Event) -> dict:
     return {
-        "datetime": event.datetime.strftime(DATETIME_FMT),
-        "event": event.event,
-        "details": event.details,
+        "x": event.x.strftime(DATETIME_FMT),
+        "y": event.y,
+        "z": event.z,
     }
 
 

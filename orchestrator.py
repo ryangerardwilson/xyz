@@ -143,7 +143,7 @@ class Orchestrator:
     def _draw(self, stdscr: "curses.window") -> None:  # type: ignore[name-defined]
         stdscr.erase()
 
-        footer = "? help"
+        footer = "? help — x=trigger y=outcome z=impact"
         draw_footer(stdscr, footer)
 
         if self.state.view == "agenda":
@@ -355,16 +355,16 @@ class Orchestrator:
         if not self.state.events:
             return False
         cur_idx = self.state.agenda_index
-        cur_day = self.state.events[cur_idx].datetime.date()
+        cur_day = self.state.events[cur_idx].x.date()
         if direction < 0:
             for idx in range(cur_idx - 1, -1, -1):
-                if self.state.events[idx].datetime.date() < cur_day:
-                    target_day = self.state.events[idx].datetime.date()
+                if self.state.events[idx].x.date() < cur_day:
+                    target_day = self.state.events[idx].x.date()
                     first_idx = next(
                         (
                             i
                             for i, ev in enumerate(self.state.events)
-                            if ev.datetime.date() == target_day
+                            if ev.x.date() == target_day
                         ),
                         idx,
                     )
@@ -372,7 +372,7 @@ class Orchestrator:
                     return True
         else:
             for idx in range(cur_idx + 1, len(self.state.events)):
-                if self.state.events[idx].datetime.date() > cur_day:
+                if self.state.events[idx].x.date() > cur_day:
                     self.state.agenda_index = idx
                     return True
         return False
@@ -565,13 +565,11 @@ class Orchestrator:
             self._pending_delete["active"] = False
             # Rebuild any derived selection indices sensibly
             if self.state.view == "agenda":
-                target_dt = updated_events[0].datetime
+                target_dt = updated_events[0].x
+                target_outcome = updated_events[0].y
+                target_impact = updated_events[0].z
                 for idx, ev in enumerate(self.state.events):
-                    if (
-                        ev.datetime == target_dt
-                        and ev.event == updated_events[0].event
-                        and ev.details == updated_events[0].details
-                    ):
+                    if ev.x == target_dt and ev.y == target_outcome and ev.z == target_impact:
                         self.state.agenda_index = idx
                         break
             else:
@@ -593,7 +591,9 @@ class Orchestrator:
         dt_str = f"{today.strftime('%Y-%m-%d')} {SEEDED_DEFAULT_TIME}"
         from models import parse_datetime
 
-        return [Event(datetime=parse_datetime(dt_str), event="", details="")]
+        from models import Event as EventModel
+
+        return [Event(x=parse_datetime(dt_str), y="", z="")]
 
     def _seed_events_for_month(
         self,
@@ -611,11 +611,11 @@ class Orchestrator:
         dt_str = f"{sel_day.strftime('%Y-%m-%d')} {SEEDED_DEFAULT_TIME}"
         from models import parse_datetime
 
-        return [Event(datetime=parse_datetime(dt_str), event="", details="")]
+        return [Event(x=parse_datetime(dt_str), y="", z="")]
 
     def _month_events_for_selected_date(self) -> List[Event]:
         sel_day = self.state.month_selected_date
-        return [e for e in self.state.events if e.datetime.date() == sel_day]
+        return [e for e in self.state.events if e.x.date() == sel_day]
 
     def _show_overlay(
         self, stdscr: "curses.window", message: str, kind: str = "error"

@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-`tcal` is a **Vim-first, terminal-native calendar** written in Python with `curses`. It focuses on keyboard workflows for inspecting schedules, runs entirely in the terminal, and now includes an optional natural-language CLI powered by OpenAI structured outputs.
+`tcal` is a **Vim-first, terminal-native task tracker** written in Python with `curses`. It focuses on keyboard workflows for inspecting schedules, runs entirely in the terminal, and now includes an optional natural-language CLI powered by OpenAI structured outputs. Tasks are defined by three fields: trigger `x` (timestamp), outcome `y`, and impact `z` (optional).
 
 ---
 
@@ -10,12 +10,12 @@
 
 - **Terminal-native UI** – pure `curses`; no GUI toolkits.
 - **Direct view toggling** – single-key `a` flips between agenda and month views; leader remains available for future chords.
-- **External editing via Vim** – pressing `i` dumps the selected event to JSON, opens `$EDITOR` (default `vim`), then re-imports the edited JSON.
+- **External editing via Vim** – pressing `i` dumps the selected task (x/y/z) to JSON, opens `$EDITOR` (default `vim`), then re-imports the edited JSON.
 - **Thin entrypoint** – `main.py` must stay tiny.
 - **Central orchestrator** – `orchestrator.py` handles CLI parsing, curses lifecycle, NL CLI entry, and the between-view policy.
 - **Flat layout** – small modules at repo root (`calendar_service.py`, `nl_executor.py`, `actions.py`, etc.).
 - **XDG-friendly config** – `$XDG_CONFIG_HOME/tcal/config.json` (fallback `~/.config/tcal/config.json`).
-- **Inspectable storage** – events stored in a CSV (default `$XDG_DATA_HOME/tcal/event.csv`, fallback `~/.tcal/event.csv`).
+- **Inspectable storage** – tasks stored in a CSV with x/y/z columns (default `$XDG_DATA_HOME/tcal/event.csv`, fallback `~/.tcal/event.csv`).
 - **Safe terminal handling** – always restore terminal state on exit.
 - **Structured natural-language intents** – OpenAI client uses JSON schema + tool-ready architecture for create/list/reschedule commands.
 
@@ -70,7 +70,7 @@ Natural-language assistants **are now in-scope** when using structured outputs/t
    - `dd` deletes the selected event in agenda/month events list. First `d` arms deletion for 600ms; second `d` confirms.
 
 5. **Persistence**
-   - `calendar_service.py` loads/saves CSV, handles upserts, deletes.
+   - `calendar_service.py` loads/saves CSV, handles upserts, deletes (now x/y/z tasks).
 
 6. **Natural-language CLI**
    - `nl_executor.py` + `openai_client.py` parse create/list/reschedule intents using JSON schema.
@@ -96,11 +96,11 @@ Natural-language assistants **are now in-scope** when using structured outputs/t
   ```
 
 ### Storage
-- CSV columns: `datetime` (YYYY-MM-DD HH:MM:SS), `event`, `details`.
+- CSV columns: `x` (timestamp trigger, YYYY-MM-DD HH:MM:SS), `y` (task outcome), `z` (impact, optional for now).
 - `calendar_service.delete_event` removes exact matches; `upsert_event` handles replacements.
 
 ### External edit contract
-- Same as earlier: JSON object with `datetime/event/details`, validated via `models.normalize_event_payload`.
+- JSON object with `x/y/z` (legacy `datetime/event/details` still accepted when parsing), validated via `models.normalize_event_payload`.
 
 ---
 
@@ -108,7 +108,7 @@ Natural-language assistants **are now in-scope** when using structured outputs/t
 
 - **Normal mode**: default navigation state.
 - **View toggle**: `a` flips between agenda and month instantly; leader remains for future sequences (e.g., `,n` for new).
-- **Insert/Edit (external)**: triggered by `i`, leaves curses, opens `$EDITOR`, returns with updated events.
+- **Insert/Edit (external)**: triggered by `i`, leaves curses, opens `$EDITOR`, returns with updated tasks (x/y/z).
 - **Delete pending state**: first `d` arms deletion, second `d` confirms.
 
 ---

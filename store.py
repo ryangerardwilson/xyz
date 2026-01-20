@@ -17,16 +17,16 @@ class StorageError(Exception):
 
 
 def _serialize_event(event: Event) -> List[str]:
-    return [event.datetime.strftime(DATETIME_FMT), event.event, event.details]
+    return [event.x.strftime(DATETIME_FMT), event.y, event.z]
 
 
 def _deserialize_row(row: List[str]) -> Event:
     if len(row) < 3:
         raise StorageError("Corrupt CSV row")
-    dt_str, event_name, details = row[0], row[1], row[2]
+    dt_str, outcome, impact = row[0], row[1], row[2]
     from models import parse_datetime
 
-    return Event(datetime=parse_datetime(dt_str), event=event_name, details=details)
+    return Event(x=parse_datetime(dt_str), y=outcome, z=impact)
 
 
 def load_events(path: Path) -> List[Event]:
@@ -38,7 +38,7 @@ def load_events(path: Path) -> List[Event]:
             events = [_deserialize_row(row) for row in reader]
     except Exception as exc:  # noqa: BLE001
         raise StorageError(f"Failed to read events from {path}: {exc}") from exc
-    events.sort(key=lambda e: e.datetime)
+    events.sort(key=lambda e: e.x)
     return events
 
 
@@ -55,7 +55,7 @@ def _write_atomic(path: Path, rows: Iterable[List[str]]) -> None:
 
 
 def save_events(path: Path, events: Iterable[Event]) -> None:
-    ordered = sorted(events, key=lambda e: (e.datetime, e.event, e.details))
+    ordered = sorted(events, key=lambda e: (e.x, e.y, e.z))
     rows = [_serialize_event(e) for e in ordered]
     _write_atomic(path, rows)
 
@@ -74,9 +74,9 @@ def upsert_event(
         for e in events:
             if (
                 not replaced
-                and e.datetime == original.datetime
-                and e.event == original.event
-                and e.details == original.details
+                and e.x == original.x
+                and e.y == original.y
+                and e.z == original.z
             ):
                 replaced = True
                 continue
@@ -84,7 +84,7 @@ def upsert_event(
     else:
         updated = list(events)
     updated.append(new_event)
-    ordered = sorted(updated, key=lambda e: (e.datetime, e.event, e.details))
+    ordered = sorted(updated, key=lambda e: (e.x, e.y, e.z))
     save_events(path, ordered)
     return ordered
 
