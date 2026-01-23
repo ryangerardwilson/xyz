@@ -12,6 +12,9 @@ from typing import Iterable, List, Tuple, cast
 from models import DATETIME_FMT, Event, Coordinates, BUCKETS, BucketName, parse_datetime
 
 
+CSV_HEADER = ["bucket", "x", "y", "z"]
+
+
 class StorageError(Exception):
     pass
 
@@ -51,7 +54,15 @@ def load_events(path: Path) -> List[Event]:
     try:
         with path.open(newline="", encoding="utf-8") as fh:
             reader = csv.reader(fh)
-            events = [_deserialize_row(row) for row in reader]
+            events: List[Event] = []
+            for row in reader:
+                if not row or all(not cell.strip() for cell in row):
+                    continue
+                normalized = [cell.strip().lower() for cell in row]
+                if len(normalized) >= len(CSV_HEADER) and normalized[: len(CSV_HEADER)] == CSV_HEADER:
+                    # Skip header row
+                    continue
+                events.append(_deserialize_row(row))
     except Exception as exc:  # noqa: BLE001
         raise StorageError(f"Failed to read events from {path}: {exc}") from exc
     events.sort(key=lambda e: e.coords.x)
@@ -74,7 +85,7 @@ def save_events(path: Path, events: Iterable[Event]) -> None:
     ordered = sorted(
         events, key=lambda e: (e.coords.x, e.bucket, e.coords.y, e.coords.z)
     )
-    rows = [_serialize_event(e) for e in ordered]
+    rows = [CSV_HEADER] + [_serialize_event(e) for e in ordered]
     _write_atomic(path, rows)
 
 
