@@ -10,7 +10,7 @@ from typing import Sequence
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from models import ValidationError
+from models import ValidationError, DEFAULT_BUCKET
 from orchestrator import Orchestrator
 
 try:
@@ -101,7 +101,7 @@ def _print_help() -> None:
         "  xyz -h           Show this help\n"
         "  xyz -v           Show installed version\n"
         "  xyz -u           Reinstall latest release if newer exists\n"
-        "  xyz -x \"<YYYY-MM-DD HH:MM[:SS]>\" -y \"<outcome>\" -z \"<impact>\"\n"
+        "  xyz -x \"<YYYY-MM-DD HH:MM[:SS]>\" -y \"<outcome>\" -z \"<impact>\" [-b <bucket>]\n"
     )
 
 
@@ -147,6 +147,13 @@ def parse_args(argv: Sequence[str]) -> tuple[dict[str, str | None], bool, bool, 
             flags["z"] = argv[idx]
             idx += 1
             continue
+        if arg == "-b":
+            idx += 1
+            if idx >= len(argv):
+                raise ValidationError("-b requires a bucket argument")
+            flags["b"] = argv[idx]
+            idx += 1
+            continue
         raise ValidationError(f"Unknown flag '{arg}'")
     return flags, show_version, show_help, do_upgrade
 
@@ -185,7 +192,8 @@ def main(argv: list[str] | None = None) -> int:
         x_val = flag_values.get("x") or ""
         y_val = flag_values.get("y") or ""
         z_val = flag_values.get("z") or ""
-        return orchestrator.handle_structured_cli(x_val, y_val, z_val)
+        bucket_val = flag_values.get("b") or DEFAULT_BUCKET
+        return orchestrator.handle_structured_cli(bucket_val, x_val, y_val, z_val)
 
     return orchestrator.run()
 

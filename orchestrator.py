@@ -38,7 +38,19 @@ from keys import (
     KEY_TAB,
     KEY_TODAY,
 )
-from models import DATETIME_FMT, Event, ValidationError, normalize_event_payload, parse_datetime
+from models import (
+    DATETIME_FMT,
+    Event,
+    ValidationError,
+    normalize_event_payload,
+    parse_datetime,
+    event_to_jsonable,
+    BUCKETS,
+    BucketName,
+    Coordinates,
+    DEFAULT_BUCKET,
+    ALL_BUCKET,
+)
 from state import AppState
 from ui_base import draw_centered_box, draw_footer
 from view_agenda import AgendaView
@@ -66,8 +78,13 @@ class Orchestrator:
     def run(self) -> int:
         return self._run_curses()
 
-    def handle_structured_cli(self, x_str: str, y_str: str, z_str: str) -> int:
-        payload = {"x": x_str, "y": y_str, "z": z_str}
+    def handle_structured_cli(
+        self, bucket_str: str, x_str: str, y_str: str, z_str: str
+    ) -> int:
+        payload = {
+            "bucket": bucket_str,
+            "coordinates": {"x": x_str, "y": y_str, "z": z_str},
+        }
         try:
             event = normalize_event_payload(payload)
         except ValidationError as exc:
@@ -81,12 +98,7 @@ class Orchestrator:
             print(str(exc))
             return 1
 
-        output = {
-            "x": event.x.strftime("%Y-%m-%d %H:%M:%S"),
-            "y": event.y,
-            "z": event.z,
-        }
-        print(json.dumps(output, indent=2))
+        print(json.dumps(event_to_jsonable(event), indent=2))
         self.state.events = updated
         return 0
 
@@ -142,13 +154,17 @@ class Orchestrator:
         stdscr.erase()
 
         footer = "? help — x=trigger y=outcome z=impact (CLI requires all)"
+        if self.state.view == "agenda":
+            footer = f"{footer}  |  bucket: {self.state.agenda_bucket_filter}"
         if self.state.leader.active:
             leader_seq = f",{self.state.leader.sequence}"
             footer = f"{footer}  |  {leader_seq}"
         draw_footer(stdscr, footer)
 
         if self.state.view == "agenda":
-            view = AgendaView(self.state.events)
+            visible_events = self._visible_agenda_events()
+            self._ensure_agenda_index_bounds(len(visible_events))
+            view = AgendaView(visible_events)
             self.state.agenda_scroll = view.render(
                 stdscr,
                 self.state.agenda_index,
@@ -184,7 +200,7 @@ class Orchestrator:
                 "Ctrl+h/l     month view: prev/next month",
                 "Ctrl+j/k     month view: next/prev year",
                 "a            toggle agenda/month",
-                "Tab          toggle focus (month view)",
+                "Tab          agenda: cycle buckets / month: toggle focus",
                 "Esc          dismiss overlays",
             ]
             draw_centered_box(stdscr, lines)
@@ -215,6 +231,10 @@ class Orchestrator:
             self.state.leader.active = True
             self.state.leader.sequence = ""
             self.state.leader.started_at_ms = int(time.time() * 1000)
+            return True
+
+        if self.state.view == "agenda" and ch == KEY_TAB:
+            self._cycle_agenda_bucket()
             return True
 
         if ch == KEY_N:
@@ -250,7 +270,8 @@ class Orchestrator:
 
         if ch == KEY_I:
             if self.state.view == "agenda":
-                if not self.state.events:
+                visible = self._visible_agenda_events()
+                if not visible:
                     return self._edit_or_create(stdscr, force_new=True)
                 return self._edit_agenda_cell(stdscr)
             elif (
@@ -278,12 +299,7 @@ class Orchestrator:
             self.state.month_event_index = 0
         else:
             self.state.view = "agenda"
-            if self.state.events:
-                self.state.agenda_index = min(
-                    self.state.agenda_index, len(self.state.events) - 1
-                )
-            else:
-                self.state.agenda_index = 0
+            self._ensure_agenda_index_bounds(len(self._visible_agenda_events()))
 
     def _maybe_timeout_leader(self, now_ms: int) -> None:
         if self.state.leader.active and self.state.leader.started_at_ms:
@@ -376,9 +392,11 @@ class Orchestrator:
 
     def _perform_delete(self) -> bool:
         if self.state.view == "agenda":
-            if not self.state.events:
+            visible = self._visible_agenda_events()
+            if not visible:
                 return False
-            target = self.state.events[self.state.agenda_index]
+            idx = max(0, min(self.state.agenda_index, len(visible) - 1))
+            target = visible[idx]
         elif self.state.view == "month" and self.state.month_focus == "events":
             month_events = self._month_events_for_selected_date()
             if not month_events:
@@ -397,9 +415,7 @@ class Orchestrator:
 
         self.state.events = new_events
         if self.state.view == "agenda":
-            self.state.agenda_index = min(self.state.agenda_index, len(new_events) - 1)
-            if self.state.agenda_index < 0:
-                self.state.agenda_index = 0
+            self._ensure_agenda_index_bounds(len(self._visible_agenda_events()))
         else:
             month_events = self._month_events_for_selected_date()
             self.state.month_event_index = min(
@@ -409,7 +425,8 @@ class Orchestrator:
 
     # Agenda behaviors
     def _handle_agenda_keys(self, ch: int) -> bool:
-        view = AgendaView(self.state.events)
+        visible = self._visible_agenda_events()
+        view = AgendaView(visible)
         if ch == KEY_J:
             self.state.agenda_index = view.move_selection(self.state.agenda_index, +1)
             return True
@@ -429,27 +446,28 @@ class Orchestrator:
         return False
 
     def _agenda_jump_day(self, direction: int) -> bool:
-        if not self.state.events:
+        visible = self._visible_agenda_events()
+        if not visible:
             return False
-        cur_idx = self.state.agenda_index
-        cur_day = self.state.events[cur_idx].x.date()
+        cur_idx = max(0, min(self.state.agenda_index, len(visible) - 1))
+        cur_day = visible[cur_idx].coords.x.date()
         if direction < 0:
             for idx in range(cur_idx - 1, -1, -1):
-                if self.state.events[idx].x.date() < cur_day:
-                    target_day = self.state.events[idx].x.date()
+                if visible[idx].coords.x.date() < cur_day:
+                    target_day = visible[idx].coords.x.date()
                     first_idx = next(
                         (
                             i
-                            for i, ev in enumerate(self.state.events)
-                            if ev.x.date() == target_day
+                            for i, ev in enumerate(visible)
+                            if ev.coords.x.date() == target_day
                         ),
                         idx,
                     )
                     self.state.agenda_index = first_idx
                     return True
         else:
-            for idx in range(cur_idx + 1, len(self.state.events)):
-                if self.state.events[idx].x.date() > cur_day:
+            for idx in range(cur_idx + 1, len(visible)):
+                if visible[idx].coords.x.date() > cur_day:
                     self.state.agenda_index = idx
                     return True
         return False
@@ -569,8 +587,14 @@ class Orchestrator:
     def _jump_today(self) -> bool:
         today = date.today()
         if self.state.view == "agenda":
-            view = AgendaView(self.state.events)
+            visible = self._visible_agenda_events()
+            if not visible:
+                self.state.agenda_index = 0
+                self.state.agenda_scroll = 0
+                return True
+            view = AgendaView(visible)
             self.state.agenda_index = view.jump_to_today()
+            self._ensure_agenda_index_bounds(len(visible))
             return True
         else:
             self.state.month_selected_date = today
@@ -581,24 +605,27 @@ class Orchestrator:
     def _edit_or_create(
         self, stdscr: "curses.window", *, force_new: bool = False
     ) -> bool:  # type: ignore[name-defined]
-        single_event_payload = False
         if self.state.view == "agenda":
+            visible = self._visible_agenda_events()
             seeds = self._seed_events_for_agenda(force_new=force_new)
-            allow_overwrite = not force_new and bool(self.state.events)
+            allow_overwrite = not force_new and bool(visible)
             originals_source = (
-                [self.state.events[self.state.agenda_index]]
-                if allow_overwrite and 0 <= self.state.agenda_index < len(self.state.events)
+                [visible[self.state.agenda_index]]
+                if allow_overwrite
+                and 0 <= self.state.agenda_index < len(visible)
                 else []
             )
             single_event_payload = len(seeds) == 1
         else:
-            has_existing = bool(self._month_events_for_selected_date())
-            select_single = not force_new and self.state.month_focus == "events" and has_existing
+            month_events = self._month_events_for_selected_date()
+            has_existing = bool(month_events)
+            select_single = (
+                not force_new and self.state.month_focus == "events" and has_existing
+            )
             seeds = self._seed_events_for_month(
                 force_new=force_new, selected_only=select_single
             )
             allow_overwrite = not force_new and has_existing
-            month_events = self._month_events_for_selected_date()
             if select_single and 0 <= self.state.month_event_index < len(month_events):
                 originals_source = [month_events[self.state.month_event_index]]
             elif allow_overwrite:
@@ -648,13 +675,8 @@ class Orchestrator:
             self._pending_delete["active"] = False
             # Rebuild any derived selection indices sensibly
             if self.state.view == "agenda":
-                target_dt = updated_events[0].x
-                target_outcome = updated_events[0].y
-                target_impact = updated_events[0].z
-                for idx, ev in enumerate(self.state.events):
-                    if ev.x == target_dt and ev.y == target_outcome and ev.z == target_impact:
-                        self.state.agenda_index = idx
-                        break
+                if updated_events:
+                    self._reselect_agenda_event(updated_events[0])
             else:
                 self.state.month_event_index = 0
         except ValidationError as exc:
@@ -664,20 +686,24 @@ class Orchestrator:
         return True
 
     def _edit_agenda_cell(self, stdscr: "curses.window") -> bool:  # type: ignore[name-defined]
-        if not self.state.events:
+        visible = self._visible_agenda_events()
+        if not visible:
             return False
 
-        event = self.state.events[self.state.agenda_index]
+        idx = max(0, min(self.state.agenda_index, len(visible) - 1))
+        event = visible[idx]
         column = max(0, min(self.state.agenda_col, AgendaView.COLUMN_COUNT - 1))
         self.state.agenda_col = column
         editor_cmd = os.environ.get("EDITOR", "vim")
 
         if column == 0:
-            seed_value = event.x.strftime(DATETIME_FMT)
+            seed_value = event.bucket
         elif column == 1:
-            seed_value = event.y
+            seed_value = event.coords.x.strftime(DATETIME_FMT)
+        elif column == 2:
+            seed_value = event.coords.y
         else:
-            seed_value = event.z
+            seed_value = event.coords.z
 
         curses.def_prog_mode()
         curses.endwin()
@@ -703,6 +729,19 @@ class Orchestrator:
 
         updated_event = event
         if column == 0:
+            new_bucket = payload.strip().lower()
+            if not new_bucket:
+                self._show_overlay(stdscr, "Bucket cannot be empty", kind="error")
+                return True
+            if new_bucket not in BUCKETS:
+                valid = ", ".join(BUCKETS)
+                self._show_overlay(stdscr, f"Invalid bucket '{new_bucket}'. Expected one of: {valid}", kind="error")
+                return True
+            bucket_name = cast(BucketName, new_bucket)
+            if bucket_name == event.bucket:
+                return True
+            updated_event = event.with_updated(bucket=bucket_name)
+        elif column == 1:
             new_value = payload.strip()
             if not new_value:
                 self._show_overlay(stdscr, "Datetime cannot be empty", kind="error")
@@ -712,15 +751,15 @@ class Orchestrator:
             except ValidationError as exc:
                 self._show_overlay(stdscr, str(exc), kind="error")
                 return True
-            if new_dt == event.x:
+            if new_dt == event.coords.x:
                 return True
             updated_event = event.with_updated(x=new_dt)
-        elif column == 1:
+        elif column == 2:
             new_value = payload.strip()
             if not new_value:
                 self._show_overlay(stdscr, "'y' (outcome) cannot be empty", kind="error")
                 return True
-            if new_value == event.y:
+            if new_value == event.coords.y:
                 return True
             updated_event = event.with_updated(y=new_value)
         else:
@@ -728,7 +767,7 @@ class Orchestrator:
             if not new_value:
                 self._show_overlay(stdscr, "'z' (impact) cannot be empty", kind="error")
                 return True
-            if new_value == event.z:
+            if new_value == event.coords.z:
                 return True
             updated_event = event.with_updated(z=new_value)
 
@@ -743,14 +782,7 @@ class Orchestrator:
             return True
 
         self.state.events = new_events
-        for idx, ev in enumerate(new_events):
-            if ev.x == updated_event.x and ev.y == updated_event.y and ev.z == updated_event.z:
-                self.state.agenda_index = idx
-                break
-        self.state.agenda_scroll = max(
-            0,
-            min(self.state.agenda_scroll, max(len(new_events) - 1, 0)),
-        )
+        self._reselect_agenda_event(updated_event)
         return True
 
     def _launch_single_value_editor(
@@ -784,16 +816,86 @@ class Orchestrator:
             except Exception:
                 pass
 
+    def _visible_agenda_events(self) -> List[Event]:
+        if self.state.agenda_bucket_filter == ALL_BUCKET:
+            return list(self.state.events)
+        return [
+            ev for ev in self.state.events if ev.bucket == self.state.agenda_bucket_filter
+        ]
+
+    def _ensure_agenda_index_bounds(self, visible_length: int) -> None:
+        if visible_length <= 0:
+            self.state.agenda_index = 0
+            self.state.agenda_scroll = 0
+        else:
+            self.state.agenda_index = max(
+                0, min(self.state.agenda_index, visible_length - 1)
+            )
+            self.state.agenda_scroll = max(
+                0, min(self.state.agenda_scroll, visible_length - 1)
+            )
+        self.state.agenda_col = max(
+            0, min(self.state.agenda_col, AgendaView.COLUMN_COUNT - 1)
+        )
+
+    def _cycle_agenda_bucket(self) -> None:
+        options: List[str] = [ALL_BUCKET, *BUCKETS]
+        try:
+            current_idx = options.index(self.state.agenda_bucket_filter)
+        except ValueError:
+            current_idx = 0
+        new_filter = options[(current_idx + 1) % len(options)]
+        self.state.agenda_bucket_filter = new_filter
+        self.state.agenda_index = 0
+        self.state.agenda_scroll = 0
+        self._ensure_agenda_index_bounds(len(self._visible_agenda_events()))
+
+    @staticmethod
+    def _event_identity(event: Event) -> tuple:
+        return (
+            event.bucket,
+            event.coords.x,
+            event.coords.y,
+            event.coords.z,
+        )
+
+    def _reselect_agenda_event(self, target: Event) -> None:
+        visible = self._visible_agenda_events()
+        target_identity = self._event_identity(target)
+        for idx, ev in enumerate(visible):
+            if self._event_identity(ev) == target_identity:
+                self.state.agenda_index = idx
+                break
+        else:
+            self.state.agenda_index = 0 if visible else 0
+        self._ensure_agenda_index_bounds(len(visible))
+
     def _seed_events_for_agenda(self, *, force_new: bool = False) -> List[Event]:
+        visible = self._visible_agenda_events()
         if (
             not force_new
-            and self.state.events
-            and 0 <= self.state.agenda_index < len(self.state.events)
+            and visible
+            and 0 <= self.state.agenda_index < len(visible)
         ):
-            return [self.state.events[self.state.agenda_index]]
+            return [visible[self.state.agenda_index]]
         today = date.today()
         dt_str = f"{today.strftime('%Y-%m-%d')} {SEEDED_DEFAULT_TIME}"
-        return [Event(x=parse_datetime(dt_str), y="", z="")]
+        bucket_filter = self.state.agenda_bucket_filter
+        bucket = (
+            DEFAULT_BUCKET
+            if bucket_filter == ALL_BUCKET
+            else cast(BucketName, bucket_filter)
+        )
+        return [
+            Event(
+                bucket=bucket,
+                coords=Coordinates(
+                    x=parse_datetime(dt_str),
+                    y="",
+                    z="",
+                ),
+            )
+        ]
 
     def _seed_events_for_month(
         self,
@@ -809,11 +911,20 @@ class Orchestrator:
                     return [evs[self.state.month_event_index]]
                 return evs
         dt_str = f"{sel_day.strftime('%Y-%m-%d')} {SEEDED_DEFAULT_TIME}"
-        return [Event(x=parse_datetime(dt_str), y="", z="")]
+        return [
+            Event(
+                bucket=DEFAULT_BUCKET,
+                coords=Coordinates(
+                    x=parse_datetime(dt_str),
+                    y="",
+                    z="",
+                ),
+            )
+        ]
 
     def _month_events_for_selected_date(self) -> List[Event]:
         sel_day = self.state.month_selected_date
-        return [e for e in self.state.events if e.x.date() == sel_day]
+        return [e for e in self.state.events if e.coords.x.date() == sel_day]
 
     def _show_overlay(
         self, stdscr: "curses.window", message: str, kind: str = "error"

@@ -5,16 +5,26 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal, Sequence
 
 DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 
 
+BucketName = Literal["personal_development", "thing", "economic"]
+BUCKETS: Sequence[BucketName] = (
+    "personal_development",
+    "thing",
+    "economic",
+)
+ALL_BUCKET = "all"
+DEFAULT_BUCKET: BucketName = "personal_development"
+
+
 @dataclass
-class Event:
-    x: datetime  # Timestamp trigger
-    y: str       # Outcome description
-    z: str = ""  # Impact (optional for now)
+class Coordinates:
+    x: datetime
+    y: str
+    z: str
 
     def with_updated(
         self,
@@ -22,11 +32,30 @@ class Event:
         x: Optional[datetime] = None,
         y: Optional[str] = None,
         z: Optional[str] = None,
-    ) -> "Event":
-        return Event(
+    ) -> "Coordinates":
+        return Coordinates(
             x=x if x is not None else self.x,
             y=y if y is not None else self.y,
             z=z if z is not None else self.z,
+        )
+
+
+@dataclass
+class Event:
+    bucket: BucketName
+    coords: Coordinates
+
+    def with_updated(
+        self,
+        *,
+        bucket: Optional[BucketName] = None,
+        x: Optional[datetime] = None,
+        y: Optional[str] = None,
+        z: Optional[str] = None,
+    ) -> "Event":
+        return Event(
+            bucket=bucket if bucket is not None else self.bucket,
+            coords=self.coords.with_updated(x=x, y=y, z=z),
         )
 
 
@@ -58,16 +87,29 @@ def parse_datetime(value: str) -> datetime:
         ) from exc
 
 
-def normalize_event_payload(data: dict) -> Event:
-    # Accept legacy keys but prefer x/y/z going forward
-    x_value = data.get("x", data.get("datetime"))
-    y_value = data.get("y", data.get("event"))
-    z_value = data.get("z", data.get("details"))
+def _normalize_bucket(raw_bucket: object | None) -> BucketName:
+    if raw_bucket is None:
+        raise ValidationError("Missing 'bucket' field")
+    bucket = str(raw_bucket).strip().lower()
+    if bucket not in BUCKETS:
+        valid = ", ".join(BUCKETS)
+        raise ValidationError(f"Invalid bucket '{bucket}'. Expected one of: {valid}")
+    return bucket  # type: ignore[return-value]
 
-    if x_value is None or y_value is None:
-        raise ValidationError("Missing 'x' (datetime) or 'y' (outcome) field")
-    if z_value is None:
-        raise ValidationError("Missing 'z' (impact) field")
+
+def normalize_event_payload(data: dict) -> Event:
+    bucket = _normalize_bucket(data.get("bucket"))
+
+    coords_data = data.get("coordinates")
+    if not isinstance(coords_data, dict):
+        raise ValidationError("Missing 'coordinates' object with x/y/z")
+
+    x_value = coords_data.get("x")
+    y_value = coords_data.get("y")
+    z_value = coords_data.get("z")
+
+    if x_value is None or y_value is None or z_value is None:
+        raise ValidationError("Coordinates must include 'x', 'y', and 'z'")
 
     dt = parse_datetime(str(x_value))
     outcome = str(y_value).strip()
@@ -77,22 +119,31 @@ def normalize_event_payload(data: dict) -> Event:
     impact = str(z_value).strip()
     if not impact:
         raise ValidationError("'z' (impact) cannot be empty")
-    return Event(x=dt, y=outcome, z=impact)
+
+    return Event(bucket=bucket, coords=Coordinates(x=dt, y=outcome, z=impact))
 
 
 def event_to_jsonable(event: Event) -> dict:
     return {
-        "x": event.x.strftime(DATETIME_FMT),
-        "y": event.y,
-        "z": event.z,
+        "bucket": event.bucket,
+        "coordinates": {
+            "x": event.coords.x.strftime(DATETIME_FMT),
+            "y": event.coords.y,
+            "z": event.coords.z,
+        },
     }
 
 
 __all__ = [
     "Event",
+    "Coordinates",
     "ValidationError",
     "parse_datetime",
     "normalize_event_payload",
     "event_to_jsonable",
     "DATETIME_FMT",
+    "BucketName",
+    "BUCKETS",
+    "ALL_BUCKET",
+    "DEFAULT_BUCKET",
 ]

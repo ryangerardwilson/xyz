@@ -43,24 +43,29 @@ def edit_event_via_editor(
             if isinstance(data, dict):
                 data = [data]
 
-            def _trim(value: object) -> str:
-                if value is None:
-                    return ""
-                return str(value).strip()
-
             updated_events = []
             for item in data:
-                x_str = _trim(item.get("x", item.get("datetime")))
-                y_str = _trim(item.get("y", item.get("event")))
-                z_str = _trim(item.get("z", item.get("details", "")))
+                bucket = str(item.get("bucket", "")).strip()
+                coords = item.get("coordinates", {}) if isinstance(item, dict) else {}
+                if not isinstance(coords, dict):
+                    coords = {}
 
-                # Treat fully empty payloads (or blank y) as a cancelled edit
-                if not x_str and not y_str and not z_str:
-                    continue
-                if not y_str:
+                def _trim(value: object) -> str:
+                    if value is None:
+                        return ""
+                    return str(value).strip()
+
+                x_str = _trim(coords.get("x"))
+                y_str = _trim(coords.get("y"))
+                z_str = _trim(coords.get("z"))
+
+                if not bucket and not x_str and not y_str and not z_str:
                     continue
 
-                normalized_input = {"x": x_str, "y": y_str, "z": z_str}
+                normalized_input = {
+                    "bucket": bucket,
+                    "coordinates": {"x": x_str, "y": y_str, "z": z_str},
+                }
                 updated_events.append(normalize_event_payload(normalized_input))
 
             return True, updated_events

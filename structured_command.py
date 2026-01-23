@@ -1,12 +1,20 @@
 
-"""Parsing and formatting helpers for deterministic x/y/z commands."""
+"""Parsing and formatting helpers for deterministic bucket/x/y/z commands."""
 
 
 import re
 from dataclasses import dataclass
 from typing import Iterable, List
 
-from models import Event, ValidationError, parse_datetime
+from models import (
+    Event,
+    ValidationError,
+    parse_datetime,
+    BUCKETS,
+    BucketName,
+    Coordinates,
+    DEFAULT_BUCKET,
+)
 
 
 class StructuredCommandError(ValueError):
@@ -14,7 +22,8 @@ class StructuredCommandError(ValueError):
 
 
 STRUCTURED_TEMPLATE = (
-    "When x(YYYY-MM-DD HH:MM:SS) happens, I want y(<outcome>) outcome, "
+    "bucket(<personal_development|thing|economic>) — "
+    "when x(YYYY-MM-DD HH:MM:SS) happens, I want y(<outcome>) outcome, "
     "to have z(<impact>) impact"
 )
 
@@ -23,6 +32,7 @@ STRUCTURED_TEMPLATE = (
 class ParsedCommand:
     """Small helper to expose raw fields when needed."""
 
+    bucket: BucketName
     x: str
     y: str
     z: str
@@ -45,6 +55,7 @@ def parse_structured_command(text: str) -> Event:
     if not text or not text.strip():
         raise StructuredCommandError("Command text is empty")
 
+    bucket_raw = _extract_component(text, "bucket")
     x_raw = _extract_component(text, "x")
     y_raw = _extract_component(text, "y")
     z_raw = _extract_component(text, "z")
@@ -52,12 +63,22 @@ def parse_structured_command(text: str) -> Event:
     if not y_raw:
         raise StructuredCommandError("y(...) must include an outcome description")
 
+    bucket = bucket_raw.strip().lower()
+    if not bucket:
+        raise StructuredCommandError("bucket(...) cannot be empty")
+    if bucket not in BUCKETS:
+        valid = ", ".join(BUCKETS)
+        raise StructuredCommandError(f"Invalid bucket '{bucket}'. Expected one of: {valid}")
+
     try:
         dt = parse_datetime(x_raw)
     except ValidationError as exc:
         raise StructuredCommandError(str(exc)) from exc
 
-    return Event(x=dt, y=y_raw, z=z_raw)
+    return Event(
+        bucket=bucket,  # type: ignore[arg-type]
+        coords=Coordinates(x=dt, y=y_raw, z=z_raw),
+    )
 
 
 def parse_structured_block(text: str) -> List[Event]:
@@ -80,8 +101,9 @@ def format_event_as_command(event: Event) -> str:
     """Render an Event using the deterministic template."""
 
     return (
-        f"When x({event.x:%Y-%m-%d %H:%M:%S}) happens, "
-        f"I want y({event.y}) outcome, to have z({event.z}) impact"
+        f"bucket({event.bucket}) — "
+        f"when x({event.coords.x:%Y-%m-%d %H:%M:%S}) happens, "
+        f"I want y({event.coords.y}) outcome, to have z({event.coords.z}) impact"
     )
 
 

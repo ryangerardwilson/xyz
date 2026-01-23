@@ -21,10 +21,10 @@ class MonthView:
     def _group_by_date(events: List[Event]) -> Dict[date, List[Event]]:
         out: Dict[date, List[Event]] = {}
         for ev in events:
-            d = ev.x.date()
+            d = ev.coords.x.date()
             out.setdefault(d, []).append(ev)
         for evs in out.values():
-            evs.sort(key=lambda e: e.x)
+            evs.sort(key=lambda e: e.coords.x)
         return out
 
     def render(
@@ -187,9 +187,9 @@ class MonthView:
         selected_event_idx = clamp(selected_event_idx, 0, max(0, len(evs) - 1))
         for idx in range(min(body_h, len(evs))):
             ev = evs[idx]
-            ts = ev.x.strftime("%H:%M")
-            impact = f" — {ev.z}" if ev.z else ""
-            line = f"{ts} {ev.y}{impact}"[:usable_w].ljust(usable_w)
+            ts = ev.coords.x.strftime("%H:%M")
+            impact = f" — {ev.coords.z}" if ev.coords.z else ""
+            line = f"{ts} {ev.coords.y}{impact}"[:usable_w].ljust(usable_w)
             attr = (
                 curses.A_REVERSE
                 if (focus == "events" and idx == selected_event_idx)

@@ -12,6 +12,8 @@ from models import Event
 from ui_base import clamp
 
 _TIMESTAMP_FMT = "%Y-%m-%d %H:%M"
+_MIN_BUCKET_WIDTH = 8
+_MAX_BUCKET_WIDTH = 22
 _MIN_X_WIDTH = 6
 _MAX_X_WIDTH = 19
 _MIN_Y_WIDTH = 6
@@ -58,10 +60,10 @@ def _wrap_text(value: str, width: int) -> List[str]:
 
 
 class AgendaView:
+    COLUMN_COUNT = 4
+
     def __init__(self, events: List[Event]):
         self.events = events
-
-    COLUMN_COUNT = 3
 
     def render(
         self,
@@ -81,25 +83,28 @@ class AgendaView:
 
         selected_col = clamp(selected_col, 0, self.COLUMN_COUNT - 1)
 
-        timestamps = [ev.x.strftime(_TIMESTAMP_FMT) for ev in self.events]
-        y_values = ["" if ev.y is None else str(ev.y) for ev in self.events]
-        z_values = ["" if ev.z is None else str(ev.z) for ev in self.events]
+        bucket_labels = [ev.bucket for ev in self.events]
+        timestamps = [ev.coords.x.strftime(_TIMESTAMP_FMT) for ev in self.events]
+        y_values = [ev.coords.y for ev in self.events]
+        z_values = [ev.coords.z for ev in self.events]
 
+        max_bucket_len = max((len(label) for label in bucket_labels), default=len("bucket"))
         max_x_len = max((len(val) for val in timestamps), default=len("x"))
         max_y_len = max((_max_line_length(val) for val in y_values), default=len("y"))
         max_z_len = max((_max_line_length(val) for val in z_values), default=len("z"))
 
+        bucket_width = max(_MIN_BUCKET_WIDTH, min(_MAX_BUCKET_WIDTH, max(len("bucket"), max_bucket_len)))
         x_width = max(_MIN_X_WIDTH, min(_MAX_X_WIDTH, max(len("x"), max_x_len)))
         y_width = max(_MIN_Y_WIDTH, min(_MAX_Y_WIDTH, max(len("y"), max_y_len)))
         z_width = max(_MIN_Z_WIDTH, min(_MAX_Z_WIDTH, max(len("z"), max_z_len)))
 
-        widths = [x_width, y_width, z_width]
-        minimums = [_MIN_X_WIDTH, _MIN_Y_WIDTH, _MIN_Z_WIDTH]
-        total_width = sum(widths) + 2 * _GAP_WIDTH
+        widths = [bucket_width, x_width, y_width, z_width]
+        minimums = [_MIN_BUCKET_WIDTH, _MIN_X_WIDTH, _MIN_Y_WIDTH, _MIN_Z_WIDTH]
+        total_width = sum(widths) + (self.COLUMN_COUNT - 1) * _GAP_WIDTH
 
         if total_width > usable_w:
             while total_width > usable_w and any(cur > minimum for cur, minimum in zip(widths, minimums)):
-                largest_idx = max(range(3), key=lambda idx: widths[idx])
+                largest_idx = max(range(self.COLUMN_COUNT), key=lambda idx: widths[idx])
                 if widths[largest_idx] <= minimums[largest_idx]:
                     break
                 widths[largest_idx] -= 1
@@ -111,11 +116,11 @@ class AgendaView:
                 if widths[idx_iter] > 1:
                     widths[idx_iter] -= 1
                     total_width -= 1
-                idx_iter = (idx_iter + 1) % 3
+                idx_iter = (idx_iter + 1) % self.COLUMN_COUNT
 
         if total_width > usable_w and usable_w > 0:
             overflow = total_width - usable_w
-            for idx in range(3):
+            for idx in range(self.COLUMN_COUNT):
                 if overflow <= 0:
                     break
                 reducible = widths[idx] - 1
@@ -126,13 +131,14 @@ class AgendaView:
                 overflow -= delta
                 total_width -= delta
 
-        x_width, y_width, z_width = [max(1, width) for width in widths]
-        total_width = x_width + y_width + z_width + 2 * _GAP_WIDTH
+        bucket_width, x_width, y_width, z_width = [max(1, width) for width in widths]
+        total_width = bucket_width + x_width + y_width + z_width + (self.COLUMN_COUNT - 1) * _GAP_WIDTH
 
         if total_width > usable_w and usable_w > 0:
             return clamp(scroll, 0, max(0, len(self.events) - 1))
 
-        x_start = 0
+        bucket_start = 0
+        x_start = bucket_start + bucket_width + _GAP_WIDTH
         y_start = x_start + x_width + _GAP_WIDTH
         z_start = y_start + y_width + _GAP_WIDTH
         tail_width = max(0, usable_w - (z_start + z_width))
@@ -151,6 +157,8 @@ class AgendaView:
                 pass
 
         header_y = 0
+        write(header_y, bucket_start, bucket_width, "bucket", curses.A_BOLD)
+        write(header_y, bucket_start + bucket_width, _GAP_WIDTH, " " * _GAP_WIDTH, curses.A_BOLD)
         write(header_y, x_start, x_width, "x", curses.A_BOLD)
         write(header_y, x_start + x_width, _GAP_WIDTH, " " * _GAP_WIDTH, curses.A_BOLD)
         write(header_y, y_start, y_width, "y", curses.A_BOLD)
@@ -169,16 +177,18 @@ class AgendaView:
             return 0
 
         rows = []
-        for idx, timestamp in enumerate(timestamps):
-            y_lines_full = _wrap_text(y_values[idx], y_width)
-            z_lines_full = _wrap_text(z_values[idx], z_width)
-            y_lines = y_lines_full if expand_all else y_lines_full[:1]
-            z_lines = z_lines_full if expand_all else z_lines_full[:1]
+        for idx, bucket_text in enumerate(bucket_labels):
+            timestamp = timestamps[idx]
+            y_full = _wrap_text(y_values[idx], y_width)
+            z_full = _wrap_text(z_values[idx], z_width)
+            y_lines = y_full if expand_all else y_full[:1]
+            z_lines = z_full if expand_all else z_full[:1]
             y_lines = y_lines or [""]
             z_lines = z_lines or [""]
             height = max(len(y_lines), len(z_lines))
             rows.append(
                 {
+                    "bucket": bucket_text,
                     "x": timestamp,
                     "y_lines": y_lines,
                     "z_lines": z_lines,
@@ -247,30 +257,44 @@ class AgendaView:
             row_lines = max(1, row["height"])
             y_lines = row["y_lines"]
             z_lines = row["z_lines"]
-            attr_x_base = curses.A_REVERSE if (idx == selected_idx and selected_col == 0) else 0
-            attr_y_base = curses.A_REVERSE if (idx == selected_idx and selected_col == 1) else 0
-            attr_z_base = curses.A_REVERSE if (idx == selected_idx and selected_col == 2) else 0
+            attr_bucket = curses.A_REVERSE if (idx == selected_idx and selected_col == 0) else 0
+            attr_x = curses.A_REVERSE if (idx == selected_idx and selected_col == 1) else 0
+            attr_y = curses.A_REVERSE if (idx == selected_idx and selected_col == 2) else 0
+            attr_z = curses.A_REVERSE if (idx == selected_idx and selected_col == 3) else 0
+
             for line_offset in range(row_lines):
                 if y_cursor >= data_bottom:
                     break
+
+                bucket_text = row["bucket"] if line_offset == 0 else ""
+                write(y_cursor, bucket_start, bucket_width, bucket_text, attr_bucket)
+                write(
+                    y_cursor,
+                    bucket_start + bucket_width,
+                    _GAP_WIDTH,
+                    " " * _GAP_WIDTH,
+                    attr_bucket,
+                )
+
                 x_text = row["x"] if line_offset == 0 else ""
-                write(y_cursor, x_start, x_width, x_text, attr_x_base)
-                write(y_cursor, x_start + x_width, _GAP_WIDTH, " " * _GAP_WIDTH, attr_x_base)
+                write(y_cursor, x_start, x_width, x_text, attr_x)
+                write(y_cursor, x_start + x_width, _GAP_WIDTH, " " * _GAP_WIDTH, attr_x)
+
                 y_text = y_lines[line_offset] if line_offset < len(y_lines) else ""
-                write(y_cursor, y_start, y_width, y_text, attr_y_base)
-                write(y_cursor, y_start + y_width, _GAP_WIDTH, " " * _GAP_WIDTH, attr_y_base)
+                write(y_cursor, y_start, y_width, y_text, attr_y)
+                write(y_cursor, y_start + y_width, _GAP_WIDTH, " " * _GAP_WIDTH, attr_y)
+
                 z_text = z_lines[line_offset] if line_offset < len(z_lines) else ""
-                write(y_cursor, z_start, z_width, z_text, attr_z_base)
+                write(y_cursor, z_start, z_width, z_text, attr_z)
                 if tail_width > 0:
                     write(y_cursor, z_start + z_width, tail_width, "", 0)
+
                 y_cursor += 1
+
             if y_cursor >= data_bottom:
                 break
 
         return scroll
-
-    def clamp_column(self, col: int) -> int:
-        return clamp(col, 0, self.COLUMN_COUNT - 1)
 
     def move_selection(self, selected_idx: int, delta: int) -> int:
         if not self.events:
@@ -282,9 +306,12 @@ class AgendaView:
             return 0
         today = datetime.today()
         for idx, ev in enumerate(self.events):
-            if ev.x >= today:
+            if ev.coords.x >= today:
                 return idx
         return len(self.events) - 1
+
+    def clamp_column(self, col: int) -> int:
+        return clamp(col, 0, self.COLUMN_COUNT - 1)
 
 
 __all__ = ["AgendaView"]

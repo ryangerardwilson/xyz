@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Literal, Optional, List
 
-from models import Event
+from models import Event, ALL_BUCKET
 
 ViewName = Literal["agenda", "month"]
 
@@ -37,6 +37,7 @@ class AppState:
     agenda_scroll: int = 0
     agenda_expand_all: bool = True
     agenda_col: int = 0
+    agenda_bucket_filter: str = ALL_BUCKET
 
     # Month view
     month_focus: FocusName = "grid"

@@ -40,6 +40,7 @@ If you’d rather run directly from the repo (handy for development or non-Linux
 ## Features
 
 - **Agenda + Month views** with Vim-style `hjkl` navigation
+- **Buckets** (`personal_development`, `thing`, `economic`) to segment work; press `Tab` in Agenda to cycle filters or show all
 - **Single-key view toggle (`a`)** to flip between agenda and month views instantly
 - **External editing** (`i`) that opens the selected task as JSON in `$EDITOR`
 - **Structured CLI** with explicit `-x/-y/-z` flags for scripting tasks deterministically
@@ -105,12 +106,13 @@ Use the deterministic flags whenever you want to script or quickly log a task:
 
 ```
 python main.py -x "2026-01-26 00:00" -y "learned to cook pasta" -z "throw a nice party"
-python main.py -x "2026-02-01 09:00" -y "ship launch blog" -z "prep launch recap"
+python main.py -x "2026-02-01 09:00" -y "ship launch blog" -z "prep launch recap" -b economic
 ```
 
 - `-x` (required): trigger timestamp (`YYYY-MM-DD HH:MM[:SS]`). Seconds are optional.
 - `-y` (required): outcome text.
 - `-z` (required): impact text.
+- `-b` (optional): bucket (`personal_development`, `thing`, or `economic`). Defaults to `personal_development` when omitted.
 
 Successful commands print the stored JSON payload. Validation/storage failures return exit code `1` with a descriptive error.
 

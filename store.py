@@ -6,10 +6,10 @@ from __future__ import annotations
 import csv
 import tempfile
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, cast
 
 
-from models import DATETIME_FMT, Event
+from models import DATETIME_FMT, Event, Coordinates, BUCKETS, BucketName, parse_datetime
 
 
 class StorageError(Exception):
@@ -17,16 +17,32 @@ class StorageError(Exception):
 
 
 def _serialize_event(event: Event) -> List[str]:
-    return [event.x.strftime(DATETIME_FMT), event.y, event.z]
+    return [
+        event.bucket,
+        event.coords.x.strftime(DATETIME_FMT),
+        event.coords.y,
+        event.coords.z,
+    ]
 
 
 def _deserialize_row(row: List[str]) -> Event:
-    if len(row) < 3:
+    if len(row) < 4:
         raise StorageError("Corrupt CSV row")
-    dt_str, outcome, impact = row[0], row[1], row[2]
-    from models import parse_datetime
+    raw_bucket, dt_str, outcome, impact = row[0], row[1], row[2], row[3]
 
-    return Event(x=parse_datetime(dt_str), y=outcome, z=impact)
+    bucket = raw_bucket.strip().lower()
+    if bucket not in BUCKETS:
+        raise StorageError(f"Invalid bucket '{bucket}' in storage")
+    bucket_name = cast(BucketName, bucket)
+
+    return Event(
+        bucket=bucket_name,
+        coords=Coordinates(
+            x=parse_datetime(dt_str),
+            y=outcome,
+            z=impact,
+        ),
+    )
 
 
 def load_events(path: Path) -> List[Event]:
@@ -38,7 +54,7 @@ def load_events(path: Path) -> List[Event]:
             events = [_deserialize_row(row) for row in reader]
     except Exception as exc:  # noqa: BLE001
         raise StorageError(f"Failed to read events from {path}: {exc}") from exc
-    events.sort(key=lambda e: e.x)
+    events.sort(key=lambda e: e.coords.x)
     return events
 
 
@@ -55,7 +71,7 @@ def _write_atomic(path: Path, rows: Iterable[List[str]]) -> None:
 
 
 def save_events(path: Path, events: Iterable[Event]) -> None:
-    ordered = sorted(events, key=lambda e: (e.x, e.y, e.z))
+    ordered = sorted(events, key=lambda e: (e.coords.x, e.bucket, e.coords.y, e.coords.z))
     rows = [_serialize_event(e) for e in ordered]
     _write_atomic(path, rows)
 
@@ -74,9 +90,10 @@ def upsert_event(
         for e in events:
             if (
                 not replaced
-                and e.x == original.x
-                and e.y == original.y
-                and e.z == original.z
+                and e.bucket == original.bucket
+                and e.coords.x == original.coords.x
+                and e.coords.y == original.coords.y
+                and e.coords.z == original.coords.z
             ):
                 replaced = True
                 continue
@@ -84,7 +101,7 @@ def upsert_event(
     else:
         updated = list(events)
     updated.append(new_event)
-    ordered = sorted(updated, key=lambda e: (e.x, e.y, e.z))
+    ordered = sorted(updated, key=lambda e: (e.coords.x, e.bucket, e.coords.y, e.coords.z))
     save_events(path, ordered)
     return ordered
 
