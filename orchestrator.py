@@ -505,6 +505,14 @@ class Orchestrator:
         filtered_events = self._bucket_filtered_events()
         view = MonthView(filtered_events)
         if self.state.month_focus == "grid":
+            if ch in (ord("\n"), curses.KEY_ENTER):
+                if self._month_events_for_selected_date():
+                    self.state.month_focus = "events"
+                    self.state.month_event_index = view.clamp_event_index(
+                        self.state.month_selected_date, self.state.month_event_index
+                    )
+                    return True
+                return False
             if ch == KEY_CTRL_H:
                 self.state.month_selected_date = view.move_month(
                     self.state.month_selected_date, -1
@@ -553,22 +561,14 @@ class Orchestrator:
                 )
                 self.state.month_event_index = 0
                 return True
-            if ch in (ord("\n"), curses.KEY_ENTER):
-                if self._month_events_for_selected_date():
-                    self.state.month_focus = "events"
-                    self.state.month_event_index = view.clamp_event_index(
-                        self.state.month_selected_date, self.state.month_event_index
-                    )
-                    return True
-                return False
         else:  # focus == events
+            if ch in (ord("\n"), curses.KEY_ENTER):
+                self.state.month_focus = "grid"
+                return True
             if ch in (KEY_H, KEY_L, KEY_CTRL_H, KEY_CTRL_L, KEY_CTRL_J, KEY_CTRL_K):
                 self.state.month_focus = "grid"
                 self.state.month_event_index = 0
                 return self._handle_month_keys(ch)
-            if ch in (ord("\n"), curses.KEY_ENTER):
-                self.state.month_focus = "grid"
-                return True
             if ch == KEY_CTRL_H:
                 self.state.month_selected_date = view.move_month(
                     self.state.month_selected_date, -1
