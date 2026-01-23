@@ -262,8 +262,7 @@ class AgendaView:
                 z_text = z_lines[line_offset] if line_offset < len(z_lines) else ""
                 write(y_cursor, z_start, z_width, z_text, attr_z_base)
                 if tail_width > 0:
-                    trailing_attr = attr_z_base if selected_col == 2 and idx == selected_idx else 0
-                    write(y_cursor, z_start + z_width, tail_width, "", trailing_attr)
+                    write(y_cursor, z_start + z_width, tail_width, "", 0)
                 y_cursor += 1
             if y_cursor >= data_bottom:
                 break
