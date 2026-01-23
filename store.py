@@ -59,7 +59,10 @@ def load_events(path: Path) -> List[Event]:
                 if not row or all(not cell.strip() for cell in row):
                     continue
                 normalized = [cell.strip().lower() for cell in row]
-                if len(normalized) >= len(CSV_HEADER) and normalized[: len(CSV_HEADER)] == CSV_HEADER:
+                if (
+                    len(normalized) >= len(CSV_HEADER)
+                    and normalized[: len(CSV_HEADER)] == CSV_HEADER
+                ):
                     # Skip header row
                     continue
                 events.append(_deserialize_row(row))

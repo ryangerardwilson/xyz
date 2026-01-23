@@ -146,15 +146,15 @@ deterministic x/y/z commands.
 ## 8. Keybinding Reference (current)
 
 | Key / Sequence | Scope | Action | | -------------- | ----- | ------ | | `q` /
-`Q`      | global | Quit | | `?`            | global | Toggle help | | `t`
-| global | Jump to today | | `a`            | global | Toggle Month / Agenda
-views | | `i`            | view (item) | Edit/create via `$EDITOR` | | `n`
-| agenda + month events | Create a new event | | `dd`           | agenda +
-month events | Delete selected event | | `Ctrl+h` / `Ctrl+l` | month view |
-Previous / next month | | `Ctrl+j` / `Ctrl+k` | month view | Next / previous
-year | | `h/j/k/l`      | agenda + month | Move selection | | `Tab`          |
-month view | Toggle grid vs events focus | | `Esc`          | overlays / leader
-| Dismiss overlays, cancel leader, exit month events focus |
+`Q`      | global | Quit | | `?`            | global | Toggle help | | `t` |
+global | Jump to today | | `a`            | global | Toggle Month / Agenda
+views | | `i`            | view (item) | Edit/create via `$EDITOR` | | `n` |
+agenda + month events | Create a new event | | `dd`           | agenda + month
+events | Delete selected event | | `Ctrl+h` / `Ctrl+l` | month view | Previous
+/ next month | | `Ctrl+j` / `Ctrl+k` | month view | Next / previous year | |
+`h/j/k/l`      | agenda + month | Move selection | | `Tab`          | month
+view | Toggle grid vs events focus | | `Esc`          | overlays / leader |
+Dismiss overlays, cancel leader, exit month events focus |
 
 Leader sequences may expand (week/day views) post-v0.
 

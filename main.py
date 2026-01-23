@@ -190,7 +190,9 @@ def main(argv: list[str] | None = None) -> int:
 
     cli_flags = {"b", "x", "y", "z"}
     if any(flag in flag_values for flag in cli_flags):
-        missing = [flag for flag in ("b", "x", "y", "z") if flag_values.get(flag) is None]
+        missing = [
+            flag for flag in ("b", "x", "y", "z") if flag_values.get(flag) is None
+        ]
         if missing:
             print(
                 f"Missing required flag(s): {', '.join(f'-{flag}' for flag in missing)}"
