@@ -159,7 +159,7 @@ class Orchestrator:
         footer = f"{footer}  |  bucket: {self.state.agenda_bucket_filter}"
         if self.state.view == "month":
             focus_label = (
-                "FOCUS:LIST" if self.state.month_focus == "events" else "FOCUS:MONTH"
+                "focus:list" if self.state.month_focus == "events" else "focus:month"
             )
             footer = f"{footer}  |  {focus_label}"
         if self.state.leader.active:
