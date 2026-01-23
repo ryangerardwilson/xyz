@@ -686,7 +686,7 @@ class Orchestrator:
         stdscr.timeout(100)
 
         if not ok:
-            self._show_overlay(stdscr, str(result), kind="error")
+            # Editor failed or was cancelled; message already surfaced if needed.
             return True
 
         updated_events = cast(List[Event], result)
@@ -712,8 +712,9 @@ class Orchestrator:
             else:
                 self.state.month_event_index = 0
             self._prune_row_overrides()
-        except ValidationError as exc:
-            self._show_overlay(stdscr, str(exc), kind="error")
+        except ValidationError:
+            # Ignore invalid payloads; keep existing events unchanged.
+            pass
         except StorageError as exc:
             self._show_overlay(stdscr, f"Storage error: {exc}", kind="error")
         return True
@@ -751,8 +752,7 @@ class Orchestrator:
             stdscr.timeout(100)
 
         if not ok:
-            if payload:
-                self._show_overlay(stdscr, payload, kind="error")
+            # Editor cancelled or failed; nothing to do.
             return True
 
         if payload is None:
@@ -762,12 +762,10 @@ class Orchestrator:
         if column == 0:
             new_value = payload.strip()
             if not new_value:
-                self._show_overlay(stdscr, "Datetime cannot be empty", kind="error")
                 return True
             try:
                 new_dt = parse_datetime(new_value)
             except ValidationError as exc:
-                self._show_overlay(stdscr, str(exc), kind="error")
                 return True
             if new_dt == event.coords.x:
                 return True
@@ -775,7 +773,6 @@ class Orchestrator:
         elif column == 1:
             new_value = payload.strip()
             if not new_value:
-                self._show_overlay(stdscr, "'y' (outcome) cannot be empty", kind="error")
                 return True
             if new_value == event.coords.y:
                 return True
@@ -783,7 +780,6 @@ class Orchestrator:
         else:
             new_value = payload.strip()
             if not new_value:
-                self._show_overlay(stdscr, "'z' (impact) cannot be empty", kind="error")
                 return True
             if new_value == event.coords.z:
                 return True
@@ -795,7 +791,9 @@ class Orchestrator:
                 updated_event,
                 replace_dt=(True, event),
             )
-        except (ValidationError, StorageError) as exc:
+        except ValidationError:
+            return True
+        except StorageError as exc:
             self._show_overlay(stdscr, str(exc), kind="error")
             return True
 
@@ -828,8 +826,7 @@ class Orchestrator:
             stdscr.timeout(100)
 
         if not ok:
-            if payload:
-                self._show_overlay(stdscr, payload, kind="error")
+            # Editor cancelled or failed; nothing to report.
             return True
 
         if payload is None:
@@ -837,7 +834,6 @@ class Orchestrator:
 
         new_bucket = payload.strip().lower()
         if not new_bucket:
-            self._show_overlay(stdscr, "Bucket cannot be empty", kind="error")
             return True
         if new_bucket not in BUCKETS:
             valid = ", ".join(BUCKETS)

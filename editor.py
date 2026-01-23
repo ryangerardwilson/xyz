@@ -37,7 +37,7 @@ def edit_event_via_editor(
         cmd = shlex.split(editor_cmd) + [str(tmp_path)]
         proc = subprocess.run(cmd, check=False)
         if proc.returncode != 0:
-            return False, "Editor cancelled or failed"
+            return False, ""
         try:
             data = json.loads(tmp_path.read_text())
             if isinstance(data, dict):
@@ -69,11 +69,11 @@ def edit_event_via_editor(
                 updated_events.append(normalize_event_payload(normalized_input))
 
             return True, updated_events
-        except ValidationError as exc:
-            return False, str(exc)
+        except ValidationError:
+            return False, ""  # silently ignore validation errors
 
         except Exception as exc:  # noqa: BLE001
-            return False, f"Invalid JSON: {exc}"
+            return False, ""
     finally:
         try:
             tmp_path.unlink()
