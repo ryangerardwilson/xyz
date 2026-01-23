@@ -138,12 +138,18 @@ class Orchestrator:
         stdscr.erase()
 
         footer = "? help — x=trigger y=outcome z=impact (CLI requires all)"
+        if self.state.leader.active:
+            leader_seq = f",{self.state.leader.sequence}"
+            footer = f"{footer}  |  {leader_seq}"
         draw_footer(stdscr, footer)
 
         if self.state.view == "agenda":
             view = AgendaView(self.state.events)
             self.state.agenda_scroll = view.render(
-                stdscr, self.state.agenda_index, self.state.agenda_scroll
+                stdscr,
+                self.state.agenda_index,
+                self.state.agenda_scroll,
+                expand_all=self.state.agenda_expand_all,
             )
         else:
             view = MonthView(self.state.events)
@@ -196,13 +202,15 @@ class Orchestrator:
 
         # Leader handling
         if self.state.leader.active:
-            self.state.leader.active = False
-            return True  # leader currently unused
+            leader_handled = self._handle_leader_input(ch)
+            if leader_handled is not None:
+                return leader_handled
 
         if ch == KEY_LEADER:
             self.state.leader.active = True
+            self.state.leader.sequence = ""
             self.state.leader.started_at_ms = int(time.time() * 1000)
-            return False
+            return True
 
         if ch == KEY_N:
             return self._edit_or_create(stdscr, force_new=True)
@@ -255,6 +263,7 @@ class Orchestrator:
     def _toggle_view(self) -> None:
         self.state.leader.active = False
         self.state.leader.started_at_ms = None
+        self.state.leader.sequence = ""
         if self.state.view == "agenda":
             self.state.view = "month"
             self.state.month_focus = "grid"
@@ -272,11 +281,70 @@ class Orchestrator:
         if self.state.leader.active and self.state.leader.started_at_ms:
             if now_ms - self.state.leader.started_at_ms > LEADER_TIMEOUT_MS:
                 self.state.leader.active = False
+                self.state.leader.sequence = ""
+                self.state.leader.started_at_ms = None
 
     def _maybe_timeout_delete(self, now_ms: int) -> None:
         if self._pending_delete["active"]:
             if now_ms - self._pending_delete["started_at"] > DELETE_TIMEOUT_MS:
                 self._pending_delete["active"] = False
+
+    def _handle_leader_input(self, ch: int) -> bool | None:
+        leader = self.state.leader
+
+        if ch == KEY_ESC:
+            leader.active = False
+            leader.sequence = ""
+            leader.started_at_ms = None
+            return True
+
+        if ch < 0 or ch > 255:
+            leader.active = False
+            leader.sequence = ""
+            leader.started_at_ms = None
+            return True
+
+        char = chr(ch)
+        sequence = leader.sequence + char
+        leader.sequence = sequence
+        leader.started_at_ms = int(time.time() * 1000)
+
+        if self.state.view != "agenda":
+            leader.active = False
+            leader.sequence = ""
+            leader.started_at_ms = None
+            return None
+
+        if sequence == "x":
+            return True
+
+        if sequence == "xa":
+            return True
+
+        if sequence == "xar":
+            self.state.agenda_expand_all = True
+            self.state.agenda_scroll = max(
+                0, min(self.state.agenda_scroll, max(len(self.state.events) - 1, 0))
+            )
+            leader.active = False
+            leader.sequence = ""
+            leader.started_at_ms = None
+            return True
+
+        if sequence == "xc":
+            self.state.agenda_expand_all = False
+            self.state.agenda_scroll = max(
+                0, min(self.state.agenda_scroll, max(len(self.state.events) - 1, 0))
+            )
+            leader.active = False
+            leader.sequence = ""
+            leader.started_at_ms = None
+            return True
+
+        leader.active = False
+        leader.sequence = ""
+        leader.started_at_ms = None
+        return None
 
     def _handle_delete_key(self, ch: int) -> bool | None:
         if ch != KEY_D:

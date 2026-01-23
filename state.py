@@ -19,6 +19,7 @@ OverlayKind = Literal["none", "help", "error", "message"]
 class LeaderState:
     active: bool = False
     started_at_ms: Optional[int] = None
+    sequence: str = ""
 
 
 @dataclass
@@ -34,6 +35,7 @@ class AppState:
     # Agenda selection
     agenda_index: int = 0
     agenda_scroll: int = 0
+    agenda_expand_all: bool = True
 
     # Month view
     month_focus: FocusName = "grid"
