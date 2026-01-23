@@ -234,28 +234,12 @@ class MonthView:
         evs = self.events_by_date.get(selected_date, [])
         selected_col = clamp(selected_col, 0, 2)
         usable_w = max(0, w - 1)
-        stdscr.addnstr(
-            y,
-            x,
-            f"Tasks {selected_date.isoformat()}"[:usable_w].ljust(
-                usable_w
-            ),
-            usable_w,
-            curses.A_BOLD,
-        )
 
-        body_h = h - 2
+        body_h = h
         if usable_w <= 0 or body_h <= 0:
             return
         events = evs
         if not events:
-            stdscr.addnstr(
-                y + 1,
-                x,
-                "(no tasks)"[:usable_w].ljust(usable_w),
-                usable_w,
-                curses.A_DIM,
-            )
             return
 
         timestamps = [ev.coords.x.strftime("%H:%M") for ev in events]
@@ -328,7 +312,7 @@ class MonthView:
             except curses.error:
                 pass
 
-        header_y = y + 1
+        header_y = y
         write(header_y, x_start, x_width, "x", curses.A_BOLD)
         write(header_y, x_start + x_width, gap, " " * gap, curses.A_BOLD)
         write(header_y, y_start, y_width, "y", curses.A_BOLD)

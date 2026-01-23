@@ -10,7 +10,7 @@ from typing import Sequence
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from models import ValidationError, DEFAULT_BUCKET
+from models import ValidationError
 from orchestrator import Orchestrator
 
 try:
@@ -105,7 +105,7 @@ def _print_help() -> None:
         "  xyz -h           Show this help\n"
         "  xyz -v           Show installed version\n"
         "  xyz -u           Reinstall latest release if newer exists\n"
-        '  xyz -x "<YYYY-MM-DD HH:MM[:SS]>" -y "<outcome>" -z "<impact>" [-b <bucket>]\n'
+        '  xyz -b "<bucket>" -x "<YYYY-MM-DD HH:MM[:SS]>" -y "<outcome>" -z "<impact>"\n'
     )
 
 
@@ -188,8 +188,9 @@ def main(argv: list[str] | None = None) -> int:
 
     orchestrator = Orchestrator()
 
-    if "x" in flag_values or "y" in flag_values or "z" in flag_values:
-        missing = [flag for flag in ("x", "y", "z") if flag_values.get(flag) is None]
+    cli_flags = {"b", "x", "y", "z"}
+    if any(flag in flag_values for flag in cli_flags):
+        missing = [flag for flag in ("b", "x", "y", "z") if flag_values.get(flag) is None]
         if missing:
             print(
                 f"Missing required flag(s): {', '.join(f'-{flag}' for flag in missing)}"
@@ -198,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
         x_val = flag_values.get("x") or ""
         y_val = flag_values.get("y") or ""
         z_val = flag_values.get("z") or ""
-        bucket_val = flag_values.get("b") or DEFAULT_BUCKET
+        bucket_val = flag_values.get("b") or ""
         return orchestrator.handle_structured_cli(bucket_val, x_val, y_val, z_val)
 
     return orchestrator.run()

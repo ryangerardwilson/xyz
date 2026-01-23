@@ -125,14 +125,14 @@ path in config. Editing a task writes it as JSON to a temp file, opens
 Use the deterministic flags whenever you want to script or quickly log a task:
 
 ```
-python main.py -x "2026-01-26 00:00" -y "learned to cook pasta" -z "throw a nice party"
-python main.py -x "2026-02-01 09:00" -y "ship launch blog" -z "prep launch recap" -b economic
+python main.py -b personal_development -x "2026-01-26 00:00" -y "learned to cook pasta" -z "throw a nice party"
+python main.py -b economic -x "2026-02-01 09:00" -y "ship launch blog" -z "prep launch recap"
 ```
 
+- `-b` (required): bucket (`personal_development`, `thing`, or `economic`).
 - `-x` (required): trigger timestamp (`YYYY-MM-DD HH:MM[:SS]`). Seconds are optional.
 - `-y` (required): outcome text.
 - `-z` (required): impact text.
-- `-b` (optional): bucket (`personal_development`, `thing`, or `economic`). Defaults to `personal_development` when omitted.
 
 Successful commands print the stored JSON payload. Validation/storage failures
 return exit code `1` with a descriptive error.

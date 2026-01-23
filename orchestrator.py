@@ -155,7 +155,7 @@ class Orchestrator:
     def _draw(self, stdscr: "curses.window") -> None:  # type: ignore[name-defined]
         stdscr.erase()
 
-        footer = "? help — x=trigger y=outcome z=impact (CLI requires all)"
+        footer = "? help — x=trigger y=outcome z=impact"
         footer = f"{footer}  |  bucket: {self.state.agenda_bucket_filter}"
         if self.state.leader.active:
             leader_seq = f",{self.state.leader.sequence}"
