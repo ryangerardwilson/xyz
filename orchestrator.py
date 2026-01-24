@@ -738,7 +738,8 @@ class Orchestrator:
             self.state.month_event_index = 0
             if self.state.month_focus == "events":
                 self.state.month_focus = "grid"
-        self._show_overlay(stdscr, "Config reloaded", kind="message")
+        self.state.overlay = "none"
+        self.state.overlay_message = ""
         return True
 
     def _edit_or_create(
