@@ -365,7 +365,7 @@ class Orchestrator:
                 leader.sequence = ""
                 leader.started_at_ms = None
                 return self._edit_config(stdscr)
-            return False
+            return True
 
         if self.state.view != "agenda":
             leader.active = False
