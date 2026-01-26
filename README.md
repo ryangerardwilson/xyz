@@ -70,6 +70,12 @@ app maps directly to that structure:
 - **Y (desired progress/outcome)** expresses the advancement the user needs, free from solution verbs like “send” or “track.”
 - **Z (why it matters/value/impact)** surfaces the deeper motivation (reduce stress, earn trust, hit a KPI), guiding prioritization toward high-leverage bets.
 
+### Goal-horizon guidance
+
+- If **X** is roughly a **3-month goal**, make sure **Y/Z** read as *realistic and grounded*.
+- If **X** points to a **5-year goal**, keep **Y/Z** *expansive yet meaningful*.
+- If **X** gestures at a **lifetime goal**, let **Y/Z** feel *deeply values-driven*.
+
 By enforcing this outcome-first language, xyz behaves more like a non-linear
 to-do system: you start with the value you need to create, then explore
 multiple ways to realize it. That mindset unlocks non-obvious solutions, aligns
