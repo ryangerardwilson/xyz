@@ -1,8 +1,23 @@
 # xyz
 
-`xyz` is a vim-first, terminal-native task tracker for people who keep their
-hands on the keyboard. It offers fast month/agenda navigation, external editing
-via your terminal editor, and a deterministic CLI for scripting x/y/z tasks.
+`xyz` is a vim-first, terminal-native task tracker built on a sharper 
+Jobs-to-Be-Done habit. It helps you write outcome statements that steer 
+product, comms, and ops toward non-linear growth instead of busywork 
+progress tracking.
+
+Here’s the practical upgrade it enforces:
+
+> **When X happens, I want Y outcome so I can Z.**
+
+- **X = target trigger** — the point in time you’ll check whether the outcome is real.
+- **Y = desired progress/outcome** — the change you need, not the tool you will use.
+- **Z = why it matters (value/impact)** — the reason this progress is worth pursuing.
+
+Because every entry is framed that way, xyz doubles as a thinking tool: 
+it nudges your backlog toward compounding bets, cross-team clarity, and 
+asymmetric growth instead of incremental checklists. Hands stay on the 
+keyboard with vim-style navigation, quick editor hops, and a deterministic 
+CLI for scripting x/y/z tasks.
 
 ---
 
@@ -66,7 +81,7 @@ Christensen’s JTBD theory, keeps planning focused on the progress users hire
 tools to make—not on the mechanics of any specific feature. Each field in the
 app maps directly to that structure:
 
-- **X (trigger/context)** grounds the job in a real moment so tasks remain situational, not hypothetical.
+- **X (target trigger)** fixes the job to when you’ll verify reality, keeping progress time-bound and concrete.
 - **Y (desired progress/outcome)** expresses the advancement the user needs, free from solution verbs like “send” or “track.”
 - **Z (why it matters/value/impact)** surfaces the deeper motivation (reduce stress, earn trust, hit a KPI), guiding prioritization toward high-leverage bets.
 
