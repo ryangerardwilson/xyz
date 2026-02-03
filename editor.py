@@ -45,25 +45,45 @@ def edit_event_via_editor(
             updated_events = []
             for item in data:
                 bucket = str(item.get("bucket", "")).strip()
-                coords = item.get("coordinates", {}) if isinstance(item, dict) else {}
-                if not isinstance(coords, dict):
-                    coords = {}
+                jtbd_data = item.get("jtbd", {}) if isinstance(item, dict) else {}
+                nsm_data = item.get("nsm", {}) if isinstance(item, dict) else {}
+                if not isinstance(jtbd_data, dict):
+                    jtbd_data = {}
+                if not isinstance(nsm_data, dict):
+                    nsm_data = {}
 
                 def _trim(value: object) -> str:
                     if value is None:
                         return ""
                     return str(value).strip()
 
-                x_str = _trim(coords.get("x"))
-                y_str = _trim(coords.get("y"))
-                z_str = _trim(coords.get("z"))
+                x_str = _trim(jtbd_data.get("x"))
+                y_str = _trim(jtbd_data.get("y"))
+                z_str = _trim(jtbd_data.get("z"))
 
-                if not bucket and not x_str and not y_str and not z_str:
+                p_str = _trim(nsm_data.get("p"))
+                q_str = _trim(nsm_data.get("q"))
+                r_str = _trim(nsm_data.get("r"))
+
+                if (
+                    not bucket
+                    and not x_str
+                    and not y_str
+                    and not z_str
+                    and not p_str
+                    and not q_str
+                    and not r_str
+                ):
                     continue
 
                 normalized_input = {
                     "bucket": bucket,
-                    "coordinates": {"x": x_str, "y": y_str, "z": z_str},
+                    "jtbd": {"x": x_str, "y": y_str, "z": z_str},
+                    "nsm": {
+                        "p": p_str,
+                        "q": q_str,
+                        "r": r_str,
+                    },
                 }
                 updated_events.append(normalize_event_payload(normalized_input))
 

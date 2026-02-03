@@ -6,7 +6,7 @@ from __future__ import annotations
 import curses
 import textwrap
 from datetime import datetime
-from typing import List
+from typing import List, Sequence
 
 from models import Event
 from ui_base import clamp
@@ -18,6 +18,8 @@ _MIN_Y_WIDTH = 6
 _MAX_Y_WIDTH = 60
 _MIN_Z_WIDTH = 6
 _MAX_Z_WIDTH = 40
+_MIN_NSM_WIDTH = 6
+_MAX_NSM_WIDTH = 12
 _GAP_WIDTH = 1
 _NO_TASKS_MESSAGE = "No tasks yet. Press i to create."
 
@@ -35,9 +37,7 @@ def _wrap_text(value: str, width: int) -> List[str]:
     if width <= 0:
         return [""]
     text = "" if value is None else str(value)
-    parts = text.splitlines()
-    if not parts:
-        parts = [text]
+    parts = text.splitlines() or [text]
     lines: List[str] = []
     for part in parts:
         if part == "":
@@ -57,17 +57,44 @@ def _wrap_text(value: str, width: int) -> List[str]:
     return lines or [""]
 
 
-def _event_identity(event: Event) -> tuple[str, datetime, str, str]:
+def _event_identity(
+    event: Event,
+) -> tuple[str, datetime, str, str, float, float, float]:
     return (
         event.bucket,
-        event.coords.x,
-        event.coords.y,
-        event.coords.z,
+        event.jtbd.x,
+        event.jtbd.y,
+        event.jtbd.z,
+        event.nsm.p,
+        event.nsm.q,
+        event.nsm.r,
     )
 
 
+def _format_nsm_value(event: Event) -> str:
+    score = (event.nsm.p + event.nsm.q + event.nsm.r) / 30.0
+    text = f"{score:.2f}"
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
 class AgendaView:
-    COLUMN_COUNT = 3
+    COLUMN_COUNT = 4
+    _HEADERS: Sequence[str] = ("x", "y", "z", "nsm")
+    _MIN_WIDTHS: Sequence[int] = (
+        _MIN_X_WIDTH,
+        _MIN_Y_WIDTH,
+        _MIN_Z_WIDTH,
+        _MIN_NSM_WIDTH,
+    )
+    _MAX_WIDTHS: Sequence[int] = (
+        _MAX_X_WIDTH,
+        _MAX_Y_WIDTH,
+        _MAX_Z_WIDTH,
+        _MAX_NSM_WIDTH,
+    )
+    _ALIGNMENTS: Sequence[str] = ("right", "right", "right", "right")
 
     def __init__(self, events: List[Event]):
         self.events = events
@@ -94,28 +121,43 @@ class AgendaView:
         selected_col = clamp(selected_col, 0, self.COLUMN_COUNT - 1)
         row_overrides = row_overrides or set()
 
-        timestamps = [ev.coords.x.strftime(_TIMESTAMP_FMT) for ev in self.events]
-        y_values = [ev.coords.y for ev in self.events]
-        z_values = [ev.coords.z for ev in self.events]
+        timestamps = [ev.jtbd.x.strftime(_TIMESTAMP_FMT) for ev in self.events]
+        y_values = [ev.jtbd.y for ev in self.events]
+        z_values = [ev.jtbd.z for ev in self.events]
+        nsm_values = [_format_nsm_value(ev) for ev in self.events]
 
-        max_x_len = max((len(val) for val in timestamps), default=len("x"))
-        max_y_len = max((_max_line_length(val) for val in y_values), default=len("y"))
-        max_z_len = max((_max_line_length(val) for val in z_values), default=len("z"))
+        column_samples: Sequence[Sequence[str]] = (
+            timestamps,
+            y_values,
+            z_values,
+            nsm_values,
+        )
 
-        x_width = max(_MIN_X_WIDTH, min(_MAX_X_WIDTH, max(len("x"), max_x_len)))
-        y_width = max(_MIN_Y_WIDTH, min(_MAX_Y_WIDTH, max(len("y"), max_y_len)))
-        z_width = max(_MIN_Z_WIDTH, min(_MAX_Z_WIDTH, max(len("z"), max_z_len)))
+        column_lengths: List[int] = []
+        for idx, samples in enumerate(column_samples):
+            if idx == 1 or idx == 2:
+                max_len = max((_max_line_length(val) for val in samples), default=0)
+            else:
+                max_len = max((len(val) for val in samples), default=0)
+            column_lengths.append(max_len)
 
-        widths = [x_width, y_width, z_width]
-        minimums = [_MIN_X_WIDTH, _MIN_Y_WIDTH, _MIN_Z_WIDTH]
+        widths: List[int] = []
+        for idx in range(self.COLUMN_COUNT):
+            min_w = self._MIN_WIDTHS[idx]
+            max_w = self._MAX_WIDTHS[idx]
+            header_len = len(self._HEADERS[idx])
+            data_len = column_lengths[idx]
+            width = max(min_w, min(max_w, max(header_len, data_len)))
+            widths.append(width)
+
         total_width = sum(widths) + (self.COLUMN_COUNT - 1) * _GAP_WIDTH
 
         if total_width > usable_w:
             while total_width > usable_w and any(
-                cur > minimum for cur, minimum in zip(widths, minimums)
+                cur > mn for cur, mn in zip(widths, self._MIN_WIDTHS)
             ):
                 largest_idx = max(range(self.COLUMN_COUNT), key=lambda idx: widths[idx])
-                if widths[largest_idx] <= minimums[largest_idx]:
+                if widths[largest_idx] <= self._MIN_WIDTHS[largest_idx]:
                     break
                 widths[largest_idx] -= 1
                 total_width -= 1
@@ -141,16 +183,17 @@ class AgendaView:
                 overflow -= delta
                 total_width -= delta
 
-        x_width, y_width, z_width = [max(1, width) for width in widths]
-        total_width = x_width + y_width + z_width + (self.COLUMN_COUNT - 1) * _GAP_WIDTH
-
+        widths = [max(1, width) for width in widths]
+        total_width = sum(widths) + (self.COLUMN_COUNT - 1) * _GAP_WIDTH
         if total_width > usable_w and usable_w > 0:
             return clamp(scroll, 0, max(0, len(self.events) - 1))
 
-        x_start = 0
-        y_start = x_start + x_width + _GAP_WIDTH
-        z_start = y_start + y_width + _GAP_WIDTH
-        tail_width = max(0, usable_w - (z_start + z_width))
+        starts: List[int] = []
+        current_x = 0
+        for width in widths:
+            starts.append(current_x)
+            current_x += width + _GAP_WIDTH
+        tail_width = max(0, usable_w - (starts[-1] + widths[-1]))
 
         def write(
             y: int,
@@ -182,13 +225,25 @@ class AgendaView:
                 pass
 
         header_y = 0
-        write(header_y, x_start, x_width, "x", curses.A_BOLD, align="right")
-        write(header_y, x_start + x_width, _GAP_WIDTH, " " * _GAP_WIDTH, curses.A_BOLD)
-        write(header_y, y_start, y_width, "y", curses.A_BOLD, align="right")
-        write(header_y, y_start + y_width, _GAP_WIDTH, " " * _GAP_WIDTH, curses.A_BOLD)
-        write(header_y, z_start, z_width, "z", curses.A_BOLD, align="right")
+        for idx, header in enumerate(self._HEADERS):
+            write(
+                header_y,
+                starts[idx],
+                widths[idx],
+                header,
+                curses.A_BOLD,
+                align=self._ALIGNMENTS[idx],
+            )
+            if idx < self.COLUMN_COUNT - 1:
+                write(
+                    header_y,
+                    starts[idx] + widths[idx],
+                    _GAP_WIDTH,
+                    " " * _GAP_WIDTH,
+                    curses.A_BOLD,
+                )
         if tail_width > 0:
-            write(header_y, z_start + z_width, tail_width, "", curses.A_BOLD)
+            write(header_y, starts[-1] + widths[-1], tail_width, "", curses.A_BOLD)
 
         data_top = 1
         data_height = usable_h - 1
@@ -203,25 +258,30 @@ class AgendaView:
 
         rows = []
         for idx, event in enumerate(self.events):
-            timestamp = timestamps[idx]
-            y_full = _wrap_text(y_values[idx], y_width)
-            z_full = _wrap_text(z_values[idx], z_width)
             identity = _event_identity(event)
             if expand_all:
                 is_expanded = identity not in row_overrides
             else:
                 is_expanded = identity in row_overrides
-            y_lines = y_full if is_expanded else y_full[:1]
-            z_lines = z_full if is_expanded else z_full[:1]
+
+            y_lines_full = _wrap_text(y_values[idx], widths[1])
+            z_lines_full = _wrap_text(z_values[idx], widths[2])
+            y_lines = y_lines_full if is_expanded else y_lines_full[:1]
+            z_lines = z_lines_full if is_expanded else z_lines_full[:1]
             y_lines = y_lines or [""]
             z_lines = z_lines or [""]
-            height = max(len(y_lines), len(z_lines))
+
+            columns = [
+                [timestamps[idx]],
+                y_lines,
+                z_lines,
+                [nsm_values[idx]],
+            ]
+            height = max(len(lines) for lines in columns)
             rows.append(
                 {
                     "identity": identity,
-                    "x": timestamp,
-                    "y_lines": y_lines,
-                    "z_lines": z_lines,
+                    "columns": columns,
                     "height": max(1, height),
                 }
             )
@@ -285,34 +345,41 @@ class AgendaView:
         for idx in visible:
             row = rows[idx]
             row_lines = max(1, row["height"])
-            y_lines = row["y_lines"]
-            z_lines = row["z_lines"]
-            attr_x = (
-                curses.A_REVERSE if (idx == selected_idx and selected_col == 0) else 0
-            )
-            attr_y = (
-                curses.A_REVERSE if (idx == selected_idx and selected_col == 1) else 0
-            )
-            attr_z = (
-                curses.A_REVERSE if (idx == selected_idx and selected_col == 2) else 0
-            )
+            columns = row["columns"]
+            attrs = [
+                curses.A_REVERSE if (idx == selected_idx and selected_col == col_idx) else 0
+                for col_idx in range(self.COLUMN_COUNT)
+            ]
 
             for line_offset in range(row_lines):
                 if y_cursor >= data_bottom:
                     break
 
-                x_text = row["x"] if line_offset == 0 else ""
-                write(y_cursor, x_start, x_width, x_text, attr_x, align="right")
-                write(y_cursor, x_start + x_width, _GAP_WIDTH, " " * _GAP_WIDTH, attr_x)
-
-                y_text = y_lines[line_offset] if line_offset < len(y_lines) else ""
-                write(y_cursor, y_start, y_width, y_text, attr_y, align="right")
-                write(y_cursor, y_start + y_width, _GAP_WIDTH, " " * _GAP_WIDTH, attr_y)
-
-                z_text = z_lines[line_offset] if line_offset < len(z_lines) else ""
-                write(y_cursor, z_start, z_width, z_text, attr_z, align="right")
+                for col_idx in range(self.COLUMN_COUNT):
+                    column_lines = columns[col_idx]
+                    text = (
+                        column_lines[line_offset]
+                        if line_offset < len(column_lines)
+                        else ""
+                    )
+                    write(
+                        y_cursor,
+                        starts[col_idx],
+                        widths[col_idx],
+                        text,
+                        attrs[col_idx],
+                        align=self._ALIGNMENTS[col_idx],
+                    )
+                    if col_idx < self.COLUMN_COUNT - 1:
+                        write(
+                            y_cursor,
+                            starts[col_idx] + widths[col_idx],
+                            _GAP_WIDTH,
+                            " " * _GAP_WIDTH,
+                            attrs[col_idx],
+                        )
                 if tail_width > 0:
-                    write(y_cursor, z_start + z_width, tail_width, "", 0)
+                    write(y_cursor, starts[-1] + widths[-1], tail_width, "", 0)
 
                 y_cursor += 1
 
@@ -331,7 +398,7 @@ class AgendaView:
             return 0
         today = datetime.today()
         for idx, ev in enumerate(self.events):
-            if ev.coords.x >= today:
+            if ev.jtbd.x >= today:
                 return idx
         return len(self.events) - 1
 

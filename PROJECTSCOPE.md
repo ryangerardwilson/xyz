@@ -5,9 +5,10 @@
 `xyz` is a **Vim-first, terminal-native task tracker** written in Python with
 `curses`. It focuses on keyboard workflows for inspecting schedules, runs
 entirely in the terminal, and supports deterministic CLI commands built around
-x/y/z tasks. Tasks are defined by three required fields that mirror an outcome-
-oriented Jobs-to-Be-Done (JTBD) statement: trigger `x` (context), outcome `y`,
-and impact `z` (why it matters).
+JTBD + North Star metric data. Tasks are defined by three required JTBD fields—
+trigger `x` (context), outcome `y`, and impact `z` (why it matters)—plus three
+single-letter North Star metric scores: `p` (alignment), `q` (impact magnitude),
+and `r` (embodiment).
 
 ### JTBD philosophy & non-linear intent
 
@@ -30,6 +31,11 @@ planning on outcomes and value. The payoff:
 - **Cross-functional alignment** – strategy, messaging, and operations share the same outcome vocabulary.
 - **High-leverage prioritization** – Z highlights where minimal effort can generate outsized gains, supporting non-linear goals like exponential adoption or dramatic ROI jumps.
 
+North Star metrics (`p`, `q`, `r`) quantify how each job contributes to the
+company vision. They live alongside the JTBD statement so that prioritization
+discussions combine narrative intent (x/y/z) with crisp numbers that track
+strategy fit, expected magnitude, and principles fit.
+
 When users capture tasks in xyz, they're effectively articulating JTBD
 statements that expose both the immediate trigger and the downstream reason it
 matters, which keeps the entire workflow oriented around meaningful progress.
@@ -40,14 +46,14 @@ matters, which keeps the entire workflow oriented around meaningful progress.
 
 - **Terminal-native UI** – pure `curses`; no GUI toolkits.
 - **Direct view toggling** – single-key `a` flips between agenda and month views; leader remains available for future chords (currently unused).
-- **External editing via Vim** – pressing `i` dumps the selected task (x/y/z) to JSON, opens `$EDITOR` (default `vim`), then re-imports the edited JSON.
+- **External editing via Vim** – pressing `i` dumps the selected task (JTBD + metrics) to JSON, opens `$EDITOR` (default `vim`), then re-imports the edited JSON.
 - **Thin entrypoint** – `main.py` must stay tiny.
 - **Central orchestrator** – `orchestrator.py` handles CLI parsing, curses lifecycle, structured CLI handling, and the between-view policy.
 - **Flat layout** – small modules at repo root (`calendar_service.py`, etc.).
 - **XDG-friendly config** – `$XDG_CONFIG_HOME/xyz/config.json` (fallback `~/.config/xyz/config.json`).
-- **Inspectable storage** – tasks stored in a CSV with x/y/z columns (default `$XDG_DATA_HOME/xyz/event.csv`, fallback `~/.xyz/event.csv`).
+- **Inspectable storage** – tasks stored in a CSV with JTBD + metric columns (default `$XDG_DATA_HOME/xyz/event.csv`, fallback `~/.xyz/event.csv`).
 - **Safe terminal handling** – always restore terminal state on exit.
-- **Deterministic x/y/z flow** – CLI, TUI, and storage all share the same three-field contract.
+- **Deterministic JTBD + metric flow** – CLI, TUI, and storage share the same x/y/z plus `p/q/r` contract.
 
 ---
 
@@ -61,7 +67,7 @@ matters, which keeps the entire workflow oriented around meaningful progress.
 - Anything that requires background jobs or OAuth (until priorities change).
 
 Natural-language assistants are currently out-of-scope; the CLI focuses on
-deterministic x/y/z commands.
+deterministic JTBD + metric commands.
 
 ---
 
@@ -102,11 +108,11 @@ deterministic x/y/z commands.
    - `dd` deletes the selected event in agenda/month events list. First `d` arms deletion for 600ms; second `d` confirms.
 
 5. **Persistence**
-   - `calendar_service.py` loads/saves CSV, handles upserts, deletes (now x/y/z tasks).
+   - `calendar_service.py` loads/saves CSV, handles upserts, deletes (JTBD + metrics).
 
 6. **Structured CLI**
-   - `main.py` parses `-x/-y/-z` flags and delegates to `Orchestrator.handle_structured_cli`.
-   - The handler validates input, applies storage updates, and prints the resulting x/y/z JSON.
+   - `main.py` parses `-x/-y/-z/-p/-q/-r` flags and delegates to `Orchestrator.handle_structured_cli`.
+   - The handler validates input, applies storage updates, and prints the resulting JTBD + metric JSON.
 
 7. **Help overlay (`?`)**
    - Lists the current shortcuts (global, leader, delete, month jumps, etc.).
@@ -126,11 +132,11 @@ deterministic x/y/z commands.
   ```
 
 ### Storage
-- CSV columns: `x` (timestamp trigger, YYYY-MM-DD HH:MM:SS), `y` (task outcome), `z` (impact; all three required for new CLI-created tasks).
+- CSV columns: `x`, `y`, `z`, `p`, `q`, `r` (plus `bucket`).
 - `calendar_service.delete_event` removes exact matches; `upsert_event` handles replacements.
 
 ### External edit contract
-- JSON object with `x/y/z` (legacy `datetime/event/details` still accepted when parsing), validated via `models.normalize_event_payload`.
+- JSON object with nested JTBD + NSM blocks: `{"bucket": ..., "jtbd": {"x": ..., "y": ..., "z": ...}, "nsm": {"p": ..., "q": ..., "r": ...}}`, validated via `models.normalize_event_payload`.
 
 ---
 
@@ -138,7 +144,7 @@ deterministic x/y/z commands.
 
 - **Normal mode**: default navigation state.
 - **View toggle**: `a` flips between agenda and month instantly; leader remains for potential future sequences (currently unused).
-- **Insert/Edit (external)**: triggered by `i`, leaves curses, opens `$EDITOR`, returns with updated tasks (x/y/z).
+- **Insert/Edit (external)**: triggered by `i`, leaves curses, opens `$EDITOR`, returns with updated JTBD + metrics.
 - **Delete pending state**: first `d` arms deletion, second `d` confirms.
 
 ---
@@ -164,7 +170,7 @@ Leader sequences may expand (week/day views) post-v0.
 
 - UI remains responsive (<16ms redraw) in both views.
 - Editing loop (navigate → `i` → edit JSON → save) works end-to-end.
-- Structured CLI validates x/y/z fields and surfaces clear errors when input is invalid.
+- Structured CLI validates JTBD fields and North Star scores, surfacing clear errors when input is invalid.
 - Config defaults resolve automatically; trailing commas don’t break parsing.
 - Documentation (README + ProjectScope) matches actual behavior.
 

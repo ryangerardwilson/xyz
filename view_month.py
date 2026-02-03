@@ -46,16 +46,29 @@ def _wrap_text(value: str, width: int) -> List[str]:
     return lines or [""]
 
 
-def _event_identity(event: Event) -> Tuple[str, datetime, str, str]:
+def _event_identity(event: Event) -> Tuple[str, datetime, str, str, float, float, float]:
     return (
         event.bucket,
-        event.coords.x,
-        event.coords.y,
-        event.coords.z,
+        event.jtbd.x,
+        event.jtbd.y,
+        event.jtbd.z,
+        event.nsm.p,
+        event.nsm.q,
+        event.nsm.r,
     )
 
 
+def _format_nsm_value(event: Event) -> str:
+    score = (event.nsm.p + event.nsm.q + event.nsm.r) / 30.0
+    text = f"{score:.2f}"
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
 class MonthView:
+    EVENT_COLUMN_COUNT = 4
+
     def __init__(self, events: List[Event]):
         self.events = events
         self.events_by_date = self._group_by_date(events)
@@ -64,10 +77,10 @@ class MonthView:
     def _group_by_date(events: List[Event]) -> Dict[date, List[Event]]:
         out: Dict[date, List[Event]] = {}
         for ev in events:
-            d = ev.coords.x.date()
+            d = ev.jtbd.x.date()
             out.setdefault(d, []).append(ev)
         for evs in out.values():
-            evs.sort(key=lambda e: e.coords.x)
+            evs.sort(key=lambda e: e.jtbd.x)
         return out
 
     def render(
@@ -79,7 +92,7 @@ class MonthView:
         selected_col: int,
         *,
         expand_all: bool,
-        row_overrides: Set[Tuple[str, datetime, str, str]],
+        row_overrides: Set[Tuple[str, datetime, str, str, float, float, float]],
         bucket_label: str,
     ) -> None:
         h, w = stdscr.getmaxyx()
@@ -228,49 +241,59 @@ class MonthView:
         selected_event_idx: int,
         selected_col: int,
         expand_all: bool,
-        row_overrides: Set[Tuple[str, datetime, str, str]],
+        row_overrides: Set[Tuple[str, datetime, str, str, float, float, float]],
         bucket_label: str,
     ) -> None:
-        evs = self.events_by_date.get(selected_date, [])
-        selected_col = clamp(selected_col, 0, 2)
+        events = self.events_by_date.get(selected_date, [])
+        selected_col = clamp(selected_col, 0, 5)
         usable_w = max(0, w - 1)
 
         body_h = h
         if usable_w <= 0 or body_h <= 0:
             return
-        events = evs
         if not events:
             return
 
-        timestamps = [ev.coords.x.strftime("%H:%M") for ev in events]
-        y_values = [ev.coords.y for ev in events]
-        z_values = [ev.coords.z for ev in events]
-
-        max_x_len = max((len(val) for val in timestamps), default=len("x"))
-        max_y_len = max((_max_line_length(val) for val in y_values), default=len("y"))
-        max_z_len = max((_max_line_length(val) for val in z_values), default=len("z"))
-
-        min_x, max_x = 5, 12
-        min_y, max_y = 6, 60
-        min_z, max_z = 6, 40
+        headers = ("x", "y", "z", "nsm")
+        min_widths = (5, 6, 6, 6)
+        max_widths = (12, 60, 40, 12)
+        alignments = ("right", "right", "right", "right")
         gap = 1
 
-        x_width = max(min_x, min(max_x, max(len("x"), max_x_len)))
-        y_width = max(min_y, min(max_y, max(len("y"), max_y_len)))
-        z_width = max(min_z, min(max_z, max(len("z"), max_z_len)))
+        timestamps = [ev.jtbd.x.strftime("%H:%M") for ev in events]
+        y_values = [ev.jtbd.y for ev in events]
+        z_values = [ev.jtbd.z for ev in events]
+        nsm_values = [_format_nsm_value(ev) for ev in events]
 
-        widths = [x_width, y_width, z_width]
-        mins = [min_x, min_y, min_z]
-        total_width = sum(widths) + 2 * gap
+        column_samples = (
+            timestamps,
+            y_values,
+            z_values,
+            nsm_values,
+        )
+
+        widths: List[int] = []
+        for idx, samples in enumerate(column_samples):
+            if idx in (1, 2):
+                data_len = max((_max_line_length(val) for val in samples), default=0)
+            else:
+                data_len = max((len(val) for val in samples), default=0)
+            width = max(
+                min_widths[idx],
+                min(max_widths[idx], max(len(headers[idx]), data_len)),
+            )
+            widths.append(width)
+
+        total_width = sum(widths) + (len(headers) - 1) * gap
 
         if total_width > usable_w:
             while total_width > usable_w and any(
-                cur > mn for cur, mn in zip(widths, mins)
+                cur > mn for cur, mn in zip(widths, min_widths)
             ):
-                idx = max(range(3), key=lambda i: widths[i])
-                if widths[idx] <= mins[idx]:
+                largest_idx = max(range(len(headers)), key=lambda idx: widths[idx])
+                if widths[largest_idx] <= min_widths[largest_idx]:
                     break
-                widths[idx] -= 1
+                widths[largest_idx] -= 1
                 total_width -= 1
 
         if total_width > usable_w:
@@ -279,11 +302,11 @@ class MonthView:
                 if widths[idx_iter] > 1:
                     widths[idx_iter] -= 1
                     total_width -= 1
-                idx_iter = (idx_iter + 1) % 3
+                idx_iter = (idx_iter + 1) % len(headers)
 
         if total_width > usable_w and usable_w > 0:
             overflow = total_width - usable_w
-            for idx in range(3):
+            for idx in range(len(headers)):
                 if overflow <= 0:
                     break
                 reducible = widths[idx] - 1
@@ -294,15 +317,17 @@ class MonthView:
                 overflow -= delta
                 total_width -= delta
 
-        x_width, y_width, z_width = [max(1, width) for width in widths]
-        total_width = x_width + y_width + z_width + 2 * gap
-        if total_width > usable_w:
-            total_width = usable_w
+        widths = [max(1, width) for width in widths]
+        total_width = sum(widths) + (len(headers) - 1) * gap
+        if total_width > usable_w and usable_w > 0:
+            return
 
-        x_start = x
-        y_start = x_start + x_width + gap
-        z_start = y_start + y_width + gap
-        tail_width = max(0, usable_w - (z_start - x + z_width))
+        starts: List[int] = []
+        current_x = x
+        for width in widths:
+            starts.append(current_x)
+            current_x += width + gap
+        tail_width = max(0, usable_w - (starts[-1] + widths[-1] - x))
 
         def write(
             row: int,
@@ -329,11 +354,25 @@ class MonthView:
                 pass
 
         header_y = y
-        write(header_y, x_start, x_width, "x", curses.A_BOLD, align="right")
-        write(header_y, x_start + x_width, gap, " " * gap, curses.A_BOLD)
-        write(header_y, y_start, y_width, "y", curses.A_BOLD, align="right")
-        write(header_y, y_start + y_width, gap, " " * gap, curses.A_BOLD)
-        write(header_y, z_start, z_width, "z", curses.A_BOLD, align="right")
+        for idx, header in enumerate(headers):
+            write(
+                header_y,
+                starts[idx],
+                widths[idx],
+                header,
+                curses.A_BOLD,
+                align=alignments[idx],
+            )
+            if idx < len(headers) - 1:
+                write(
+                    header_y,
+                    starts[idx] + widths[idx],
+                    gap,
+                    " " * gap,
+                    curses.A_BOLD,
+                )
+        if tail_width > 0:
+            write(header_y, starts[-1] + widths[-1], tail_width, "", curses.A_BOLD)
 
         data_top = header_y + 1
         data_height = body_h - 1
@@ -341,32 +380,37 @@ class MonthView:
             return
 
         rows = []
-        for event in events:
+        for idx, event in enumerate(events):
             identity = _event_identity(event)
             if expand_all:
                 expanded = identity not in row_overrides
             else:
                 expanded = identity in row_overrides
-            y_lines_full = _wrap_text(event.coords.y, y_width)
-            z_lines_full = _wrap_text(event.coords.z, z_width)
+
+            y_lines_full = _wrap_text(y_values[idx], widths[1])
+            z_lines_full = _wrap_text(z_values[idx], widths[2])
             y_lines = y_lines_full if expanded else y_lines_full[:1]
             z_lines = z_lines_full if expanded else z_lines_full[:1]
             y_lines = y_lines or [""]
             z_lines = z_lines or [""]
-            row_height = max(len(y_lines), len(z_lines))
+
+            columns = [
+                [timestamps[idx]],
+                y_lines,
+                z_lines,
+                [nsm_values[idx]],
+            ]
+            height = max(len(lines) for lines in columns)
             rows.append(
                 {
                     "identity": identity,
-                    "x": event.coords.x.strftime("%H:%M"),
-                    "y_lines": y_lines,
-                    "z_lines": z_lines,
-                    "height": max(1, row_height),
+                    "columns": columns,
+                    "height": max(1, height),
                 }
             )
 
         total_rows = len(rows)
         selected_event_idx = clamp(selected_event_idx, 0, total_rows - 1)
-        selected_col = clamp(selected_col, 0, 2)
         row_heights = [row["height"] for row in rows]
 
         def compute_visible(start: int) -> List[int]:
@@ -397,25 +441,40 @@ class MonthView:
         for idx in visible_indices:
             row = rows[idx]
             row_lines = row["height"]
-            y_lines = row["y_lines"]
-            z_lines = row["z_lines"]
+            columns = row["columns"]
             is_active_row = focus == "events" and idx == selected_event_idx
-            attr_x = curses.A_REVERSE if is_active_row and selected_col == 0 else 0
-            attr_y = curses.A_REVERSE if is_active_row and selected_col == 1 else 0
-            attr_z = curses.A_REVERSE if is_active_row and selected_col == 2 else 0
+            attrs = [
+                curses.A_REVERSE if (is_active_row and selected_col == col_idx) else 0
+                for col_idx in range(len(headers))
+            ]
             for line_offset in range(row_lines):
                 if y_cursor >= data_top + data_height:
                     break
-                x_text = row["x"] if line_offset == 0 else ""
-                write(y_cursor, x_start, x_width, x_text, attr_x, align="right")
-                write(y_cursor, x_start + x_width, gap, " " * gap, attr_x)
-                y_text = y_lines[line_offset] if line_offset < len(y_lines) else ""
-                write(y_cursor, y_start, y_width, y_text, attr_y, align="right")
-                write(y_cursor, y_start + y_width, gap, " " * gap, attr_y)
-                z_text = z_lines[line_offset] if line_offset < len(z_lines) else ""
-                write(y_cursor, z_start, z_width, z_text, attr_z, align="right")
+                for col_idx in range(len(headers)):
+                    column_lines = columns[col_idx]
+                    text = (
+                        column_lines[line_offset]
+                        if line_offset < len(column_lines)
+                        else ""
+                    )
+                    write(
+                        y_cursor,
+                        starts[col_idx],
+                        widths[col_idx],
+                        text,
+                        attrs[col_idx],
+                        align=alignments[col_idx],
+                    )
+                    if col_idx < len(headers) - 1:
+                        write(
+                            y_cursor,
+                            starts[col_idx] + widths[col_idx],
+                            gap,
+                            " " * gap,
+                            attrs[col_idx],
+                        )
                 if tail_width > 0:
-                    write(y_cursor, z_start + z_width, tail_width, "", 0)
+                    write(y_cursor, starts[-1] + widths[-1], tail_width, "", 0)
                 y_cursor += 1
             if y_cursor >= data_top + data_height:
                 break

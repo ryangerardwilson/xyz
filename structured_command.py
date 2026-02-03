@@ -6,11 +6,12 @@ from typing import Iterable, List
 
 from models import (
     Event,
+    JTBD,
+    NorthStarMetrics,
     ValidationError,
     parse_datetime,
     BUCKETS,
     BucketName,
-    Coordinates,
 )
 
 
@@ -21,7 +22,8 @@ class StructuredCommandError(ValueError):
 STRUCTURED_TEMPLATE = (
     "bucket(<personal_development|thing|economic>) — "
     "when x(YYYY-MM-DD HH:MM:SS) happens, I want y(<outcome>) outcome, "
-    "to have z(<impact>) impact"
+    "so I can z(<reason>); "
+    "p(<alignment score>) q(<impact score>) r(<embodiment score>)"
 )
 
 
@@ -33,9 +35,19 @@ class ParsedCommand:
     x: str
     y: str
     z: str
+    p: float
+    q: float
+    r: float
 
 
 _COMPONENT_RE = re.compile(r"(?i){label}\((.*?)\)")
+
+
+def _format_metric(value: float) -> str:
+    text = f"{value:.2f}"
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
 
 
 def _extract_component(text: str, label: str) -> str:
@@ -56,6 +68,9 @@ def parse_structured_command(text: str) -> Event:
     x_raw = _extract_component(text, "x")
     y_raw = _extract_component(text, "y")
     z_raw = _extract_component(text, "z")
+    p_raw = _extract_component(text, "p")
+    q_raw = _extract_component(text, "q")
+    r_raw = _extract_component(text, "r")
 
     if not y_raw:
         raise StructuredCommandError("y(...) must include an outcome description")
@@ -74,9 +89,17 @@ def parse_structured_command(text: str) -> Event:
     except ValidationError as exc:
         raise StructuredCommandError(str(exc)) from exc
 
+    try:
+        p_value = float(p_raw)
+        q_value = float(q_raw)
+        r_value = float(r_raw)
+    except ValueError as exc:
+        raise StructuredCommandError("North star metrics must be numeric") from exc
+
     return Event(
         bucket=bucket,  # type: ignore[arg-type]
-        coords=Coordinates(x=dt, y=y_raw, z=z_raw),
+        jtbd=JTBD(x=dt, y=y_raw, z=z_raw),
+        nsm=NorthStarMetrics(p=p_value, q=q_value, r=r_value),
     )
 
 
@@ -101,8 +124,11 @@ def format_event_as_command(event: Event) -> str:
 
     return (
         f"bucket({event.bucket}) — "
-        f"when x({event.coords.x:%Y-%m-%d %H:%M:%S}) happens, "
-        f"I want y({event.coords.y}) outcome, to have z({event.coords.z}) impact"
+        f"when x({event.jtbd.x:%Y-%m-%d %H:%M:%S}) happens, "
+        f"I want y({event.jtbd.y}) outcome, so I can z({event.jtbd.z}); "
+        f"p({_format_metric(event.nsm.p)}) "
+        f"q({_format_metric(event.nsm.q)}) "
+        f"r({_format_metric(event.nsm.r)})"
     )
 
 

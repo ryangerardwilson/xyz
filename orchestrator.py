@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from datetime import date
 from typing import List, cast
+import re
 
 from calendar_service import CalendarService, StorageError
 from config import load_config, config_file_path
@@ -42,13 +43,14 @@ from keys import (
 from models import (
     DATETIME_FMT,
     Event,
+    JTBD,
+    NorthStarMetrics,
     ValidationError,
     normalize_event_payload,
     parse_datetime,
     event_to_jsonable,
     BUCKETS,
     BucketName,
-    Coordinates,
     DEFAULT_BUCKET,
     ALL_BUCKET,
 )
@@ -61,6 +63,45 @@ from view_month import MonthView
 LEADER_TIMEOUT_MS = 1000
 DELETE_TIMEOUT_MS = 600
 SEEDED_DEFAULT_TIME = "23:59:59"
+
+
+def _format_metric_value(value: float) -> str:
+    text = f"{value:.2f}"
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
+def _format_nsm_json(event: Event) -> str:
+    payload = {"p": event.nsm.p, "q": event.nsm.q, "r": event.nsm.r}
+    return json.dumps(payload, indent=2)
+
+
+def _parse_nsm_input(raw: str | None) -> tuple[float, float, float] | None:
+    if raw is None:
+        return None
+    candidate = raw.strip()
+    if not candidate:
+        return None
+    # Try JSON first.
+    try:
+        data = json.loads(candidate)
+        if isinstance(data, dict):
+            p_val = float(data["p"])
+            q_val = float(data["q"])
+            r_val = float(data["r"])
+            return (p_val, q_val, r_val)
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        pass
+
+    parts = [part for part in re.split(r"[\s,]+", candidate) if part]
+    if len(parts) != 3:
+        return None
+    try:
+        values = tuple(float(part) for part in parts)
+    except ValueError:
+        return None
+    return cast(tuple[float, float, float], values)
 
 
 class Orchestrator:
@@ -81,11 +122,23 @@ class Orchestrator:
         return self._run_curses()
 
     def handle_structured_cli(
-        self, bucket_str: str, x_str: str, y_str: str, z_str: str
+        self,
+        bucket_str: str,
+        x_str: str,
+        y_str: str,
+        z_str: str,
+        p_str: str,
+        q_str: str,
+        r_str: str,
     ) -> int:
         payload = {
             "bucket": bucket_str,
-            "coordinates": {"x": x_str, "y": y_str, "z": z_str},
+            "jtbd": {"x": x_str, "y": y_str, "z": z_str},
+            "nsm": {
+                "p": p_str,
+                "q": q_str,
+                "r": r_str,
+            },
         }
         try:
             event = normalize_event_payload(payload)
@@ -181,7 +234,7 @@ class Orchestrator:
             stdscr.refresh()
             return
 
-        footer = "? help — x=trigger y=outcome z=impact"
+        footer = "? help — x=trigger y=outcome z=impact p/q/r scores"
         footer = f"{footer}  |  bucket: {self.state.agenda_bucket_filter}"
         if self.state.view == "month":
             focus_label = (
@@ -211,7 +264,9 @@ class Orchestrator:
             self.state.month_event_index = view.clamp_event_index(
                 self.state.month_selected_date, self.state.month_event_index
             )
-            self.state.month_event_col = max(0, min(self.state.month_event_col, 2))
+            self.state.month_event_col = max(
+                0, min(self.state.month_event_col, MonthView.EVENT_COLUMN_COUNT - 1)
+            )
             view.render(
                 stdscr,
                 self.state.month_selected_date,
@@ -539,16 +594,16 @@ class Orchestrator:
         if not visible:
             return False
         cur_idx = max(0, min(self.state.agenda_index, len(visible) - 1))
-        cur_day = visible[cur_idx].coords.x.date()
+        cur_day = visible[cur_idx].jtbd.x.date()
         if direction < 0:
             for idx in range(cur_idx - 1, -1, -1):
-                if visible[idx].coords.x.date() < cur_day:
-                    target_day = visible[idx].coords.x.date()
+                if visible[idx].jtbd.x.date() < cur_day:
+                    target_day = visible[idx].jtbd.x.date()
                     first_idx = next(
                         (
                             i
                             for i, ev in enumerate(visible)
-                            if ev.coords.x.date() == target_day
+                            if ev.jtbd.x.date() == target_day
                         ),
                         idx,
                     )
@@ -556,7 +611,7 @@ class Orchestrator:
                     return True
         else:
             for idx in range(cur_idx + 1, len(visible)):
-                if visible[idx].coords.x.date() > cur_day:
+                if visible[idx].jtbd.x.date() > cur_day:
                     self.state.agenda_index = idx
                     return True
         return False
@@ -573,7 +628,11 @@ class Orchestrator:
                         self.state.month_selected_date, self.state.month_event_index
                     )
                     self.state.month_event_col = max(
-                        0, min(self.state.month_event_col, 2)
+                        0,
+                        min(
+                            self.state.month_event_col,
+                            MonthView.EVENT_COLUMN_COUNT - 1,
+                        ),
                     )
                     return True
                 return False
@@ -633,7 +692,10 @@ class Orchestrator:
                 self.state.month_event_col = max(0, self.state.month_event_col - 1)
                 return True
             if ch == KEY_L:
-                self.state.month_event_col = min(2, self.state.month_event_col + 1)
+                self.state.month_event_col = min(
+                    MonthView.EVENT_COLUMN_COUNT - 1,
+                    self.state.month_event_col + 1,
+                )
                 return True
             if ch in (KEY_CTRL_H, KEY_CTRL_L, KEY_CTRL_J, KEY_CTRL_K):
                 self.state.month_focus = "grid"
@@ -882,12 +944,17 @@ class Orchestrator:
         self.state.agenda_col = column
         editor_cmd = os.environ.get("EDITOR", "vim")
 
+        seed_value = ""
         if column == 0:
-            seed_value = event.coords.x.strftime(DATETIME_FMT)
+            seed_value = event.jtbd.x.strftime(DATETIME_FMT)
         elif column == 1:
-            seed_value = event.coords.y
+            seed_value = event.jtbd.y
+        elif column == 2:
+            seed_value = event.jtbd.z
+        elif column == 3:
+            seed_value = _format_nsm_json(event)
         else:
-            seed_value = event.coords.z
+            seed_value = ""
 
         curses.def_prog_mode()
         curses.endwin()
@@ -919,23 +986,35 @@ class Orchestrator:
                 new_dt = parse_datetime(new_value)
             except ValidationError:
                 return True
-            if new_dt == event.coords.x:
+            if new_dt == event.jtbd.x:
                 return True
             updated_event = event.with_updated(x=new_dt)
         elif column == 1:
             new_value = payload.strip()
             if not new_value:
                 return True
-            if new_value == event.coords.y:
+            if new_value == event.jtbd.y:
                 return True
             updated_event = event.with_updated(y=new_value)
-        else:
+        elif column == 2:
             new_value = payload.strip()
             if not new_value:
                 return True
-            if new_value == event.coords.z:
+            if new_value == event.jtbd.z:
                 return True
             updated_event = event.with_updated(z=new_value)
+        elif column == 3:
+            parsed_triplet = _parse_nsm_input(payload)
+            if parsed_triplet is None:
+                return True
+            p_val, q_val, r_val = parsed_triplet
+            if (
+                p_val == event.nsm.p
+                and q_val == event.nsm.q
+                and r_val == event.nsm.r
+            ):
+                return True
+            updated_event = event.with_updated(p=p_val, q=q_val, r=r_val)
 
         try:
             new_events = self.calendar.upsert_event(
@@ -1027,16 +1106,22 @@ class Orchestrator:
 
         idx = max(0, min(self.state.month_event_index, len(events) - 1))
         event = events[idx]
-        column = max(0, min(self.state.month_event_col, 2))
+        max_column = MonthView.EVENT_COLUMN_COUNT - 1
+        column = max(0, min(self.state.month_event_col, max_column))
         self.state.month_event_col = column
         editor_cmd = os.environ.get("EDITOR", "vim")
 
+        seed_value = ""
         if column == 0:
-            seed_value = event.coords.x.strftime(DATETIME_FMT)
+            seed_value = event.jtbd.x.strftime(DATETIME_FMT)
         elif column == 1:
-            seed_value = event.coords.y
+            seed_value = event.jtbd.y
+        elif column == 2:
+            seed_value = event.jtbd.z
+        elif column == 3:
+            seed_value = _format_nsm_json(event)
         else:
-            seed_value = event.coords.z
+            seed_value = ""
 
         curses.def_prog_mode()
         curses.endwin()
@@ -1064,19 +1149,31 @@ class Orchestrator:
                 new_dt = parse_datetime(new_value)
             except ValidationError:
                 return True
-            if new_dt == event.coords.x:
+            if new_dt == event.jtbd.x:
                 return True
             updated_event = event.with_updated(x=new_dt)
         elif column == 1:
             new_value = payload.strip()
-            if not new_value or new_value == event.coords.y:
+            if not new_value or new_value == event.jtbd.y:
                 return True
             updated_event = event.with_updated(y=new_value)
-        else:
+        elif column == 2:
             new_value = payload.strip()
-            if not new_value or new_value == event.coords.z:
+            if not new_value or new_value == event.jtbd.z:
                 return True
             updated_event = event.with_updated(z=new_value)
+        elif column == 3:
+            parsed_triplet = _parse_nsm_input(payload)
+            if parsed_triplet is None:
+                return True
+            p_val, q_val, r_val = parsed_triplet
+            if (
+                p_val == event.nsm.p
+                and q_val == event.nsm.q
+                and r_val == event.nsm.r
+            ):
+                return True
+            updated_event = event.with_updated(p=p_val, q=q_val, r=r_val)
 
         try:
             new_events = self.calendar.upsert_event(
@@ -1237,9 +1334,12 @@ class Orchestrator:
     def _event_identity(event: Event) -> tuple:
         return (
             event.bucket,
-            event.coords.x,
-            event.coords.y,
-            event.coords.z,
+            event.jtbd.x,
+            event.jtbd.y,
+            event.jtbd.z,
+            event.nsm.p,
+            event.nsm.q,
+            event.nsm.r,
         )
 
     def _reselect_agenda_event(self, target: Event) -> None:
@@ -1254,7 +1354,7 @@ class Orchestrator:
         self._ensure_agenda_index_bounds(len(visible))
 
     def _reselect_month_event(self, target: Event) -> None:
-        target_day = target.coords.x.date()
+        target_day = target.jtbd.x.date()
         if target_day != self.state.month_selected_date:
             self.state.month_selected_date = target_day
         events = self._month_events_for_selected_date()
@@ -1267,7 +1367,9 @@ class Orchestrator:
             self.state.month_event_index = min(
                 self.state.month_event_index, max(len(events) - 1, 0)
             )
-        self.state.month_event_col = max(0, min(self.state.month_event_col, 2))
+        self.state.month_event_col = max(
+            0, min(self.state.month_event_col, MonthView.EVENT_COLUMN_COUNT - 1)
+        )
 
     def _prune_row_overrides(self) -> None:
         valid = {self._event_identity(ev) for ev in self.state.events}
@@ -1297,11 +1399,12 @@ class Orchestrator:
         return [
             Event(
                 bucket=bucket,
-                coords=Coordinates(
+                jtbd=JTBD(
                     x=parse_datetime(dt_str),
                     y="",
                     z="",
                 ),
+                nsm=NorthStarMetrics(p=0.0, q=0.0, r=0.0),
             )
         ]
 
@@ -1322,18 +1425,19 @@ class Orchestrator:
         return [
             Event(
                 bucket=DEFAULT_BUCKET,
-                coords=Coordinates(
+                jtbd=JTBD(
                     x=parse_datetime(dt_str),
                     y="",
                     z="",
                 ),
+                nsm=NorthStarMetrics(p=0.0, q=0.0, r=0.0),
             )
         ]
 
     def _month_events_for_selected_date(self) -> List[Event]:
         sel_day = self.state.month_selected_date
         return [
-            e for e in self._bucket_filtered_events() if e.coords.x.date() == sel_day
+            e for e in self._bucket_filtered_events() if e.jtbd.x.date() == sel_day
         ]
 
     def _show_overlay(

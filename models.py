@@ -21,7 +21,7 @@ DEFAULT_BUCKET: BucketName = "personal_development"
 
 
 @dataclass
-class Coordinates:
+class JTBD:
     x: datetime
     y: str
     z: str
@@ -32,8 +32,8 @@ class Coordinates:
         x: Optional[datetime] = None,
         y: Optional[str] = None,
         z: Optional[str] = None,
-    ) -> "Coordinates":
-        return Coordinates(
+    ) -> "JTBD":
+        return JTBD(
             x=x if x is not None else self.x,
             y=y if y is not None else self.y,
             z=z if z is not None else self.z,
@@ -41,9 +41,30 @@ class Coordinates:
 
 
 @dataclass
+class NorthStarMetrics:
+    p: float
+    q: float
+    r: float
+
+    def with_updated(
+        self,
+        *,
+        p: Optional[float] = None,
+        q: Optional[float] = None,
+        r: Optional[float] = None,
+    ) -> "NorthStarMetrics":
+        return NorthStarMetrics(
+            p=p if p is not None else self.p,
+            q=q if q is not None else self.q,
+            r=r if r is not None else self.r,
+        )
+
+
+@dataclass
 class Event:
     bucket: BucketName
-    coords: Coordinates
+    jtbd: JTBD
+    nsm: NorthStarMetrics
 
     def with_updated(
         self,
@@ -52,10 +73,14 @@ class Event:
         x: Optional[datetime] = None,
         y: Optional[str] = None,
         z: Optional[str] = None,
+        p: Optional[float] = None,
+        q: Optional[float] = None,
+        r: Optional[float] = None,
     ) -> "Event":
         return Event(
             bucket=bucket if bucket is not None else self.bucket,
-            coords=self.coords.with_updated(x=x, y=y, z=z),
+            jtbd=self.jtbd.with_updated(x=x, y=y, z=z),
+            nsm=self.nsm.with_updated(p=p, q=q, r=r),
         )
 
 
@@ -97,19 +122,17 @@ def _normalize_bucket(raw_bucket: object | None) -> BucketName:
     return bucket  # type: ignore[return-value]
 
 
-def normalize_event_payload(data: dict) -> Event:
-    bucket = _normalize_bucket(data.get("bucket"))
+def _extract_jtbd(data: dict) -> JTBD:
+    jtbd_data = data.get("jtbd")
+    if not isinstance(jtbd_data, dict):
+        raise ValidationError("Missing 'jtbd' object with x/y/z")
 
-    coords_data = data.get("coordinates")
-    if not isinstance(coords_data, dict):
-        raise ValidationError("Missing 'coordinates' object with x/y/z")
-
-    x_value = coords_data.get("x")
-    y_value = coords_data.get("y")
-    z_value = coords_data.get("z")
+    x_value = jtbd_data.get("x")
+    y_value = jtbd_data.get("y")
+    z_value = jtbd_data.get("z")
 
     if x_value is None or y_value is None or z_value is None:
-        raise ValidationError("Coordinates must include 'x', 'y', and 'z'")
+        raise ValidationError("JTBD must include 'x', 'y', and 'z'")
 
     dt = parse_datetime(str(x_value))
     outcome = str(y_value).strip()
@@ -120,23 +143,64 @@ def normalize_event_payload(data: dict) -> Event:
     if not impact:
         raise ValidationError("'z' (impact) cannot be empty")
 
-    return Event(bucket=bucket, coords=Coordinates(x=dt, y=outcome, z=impact))
+    return JTBD(x=dt, y=outcome, z=impact)
+
+
+def _coerce_metric(value: object, label: str) -> float:
+    if value is None:
+        raise ValidationError(f"Missing metric '{label}'")
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        candidate = value.strip()
+        if not candidate:
+            raise ValidationError(f"Metric '{label}' cannot be empty")
+        try:
+            return float(candidate)
+        except ValueError as exc:
+            raise ValidationError(f"Metric '{label}' must be numeric") from exc
+    raise ValidationError(f"Metric '{label}' must be numeric")
+
+
+def _extract_nsm(data: dict) -> NorthStarMetrics:
+    nsm_data = data.get("nsm")
+    if not isinstance(nsm_data, dict):
+        raise ValidationError("Missing 'nsm' object with p/q/r")
+
+    p_value = _coerce_metric(nsm_data.get("p"), "p")
+    q_value = _coerce_metric(nsm_data.get("q"), "q")
+    r_value = _coerce_metric(nsm_data.get("r"), "r")
+
+    return NorthStarMetrics(p=p_value, q=q_value, r=r_value)
+
+
+def normalize_event_payload(data: dict) -> Event:
+    bucket = _normalize_bucket(data.get("bucket"))
+    jtbd = _extract_jtbd(data)
+    nsm = _extract_nsm(data)
+    return Event(bucket=bucket, jtbd=jtbd, nsm=nsm)
 
 
 def event_to_jsonable(event: Event) -> dict:
     return {
         "bucket": event.bucket,
-        "coordinates": {
-            "x": event.coords.x.strftime(DATETIME_FMT),
-            "y": event.coords.y,
-            "z": event.coords.z,
+        "jtbd": {
+            "x": event.jtbd.x.strftime(DATETIME_FMT),
+            "y": event.jtbd.y,
+            "z": event.jtbd.z,
+        },
+        "nsm": {
+            "p": event.nsm.p,
+            "q": event.nsm.q,
+            "r": event.nsm.r,
         },
     }
 
 
 __all__ = [
     "Event",
-    "Coordinates",
+    "JTBD",
+    "NorthStarMetrics",
     "ValidationError",
     "parse_datetime",
     "normalize_event_payload",

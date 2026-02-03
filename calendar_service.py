@@ -34,9 +34,9 @@ class CalendarService:
     ) -> List[Event]:
         filtered = []
         for ev in events:
-            if start and ev.coords.x < start:
+            if start and ev.jtbd.x < start:
                 continue
-            if end and ev.coords.x > end:
+            if end and ev.jtbd.x > end:
                 continue
             filtered.append(ev)
         return filtered
@@ -47,7 +47,11 @@ class CalendarService:
         return [
             ev
             for ev in events
-            if needle in ev.coords.y.lower() or needle in ev.coords.z.lower()
+            if needle in ev.jtbd.y.lower()
+            or needle in ev.jtbd.z.lower()
+            or needle in f"{ev.nsm.p}".lower()
+            or needle in f"{ev.nsm.q}".lower()
+            or needle in f"{ev.nsm.r}".lower()
         ]
 
     def upsert_event(
@@ -72,9 +76,12 @@ class CalendarService:
             for ev in events
             if not (
                 ev.bucket == target.bucket
-                and ev.coords.x == target.coords.x
-                and ev.coords.y == target.coords.y
-                and ev.coords.z == target.coords.z
+                and ev.jtbd.x == target.jtbd.x
+                and ev.jtbd.y == target.jtbd.y
+                and ev.jtbd.z == target.jtbd.z
+                and ev.nsm.p == target.nsm.p
+                and ev.nsm.q == target.nsm.q
+                and ev.nsm.r == target.nsm.r
             )
         ]
         save_events(self._data_path, remaining)

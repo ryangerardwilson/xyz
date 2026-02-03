@@ -105,7 +105,8 @@ def _print_help() -> None:
         "  xyz -h           Show this help\n"
         "  xyz -v           Show installed version\n"
         "  xyz -u           Reinstall latest release if newer exists\n"
-        '  xyz -b "<bucket>" -x "<YYYY-MM-DD HH:MM[:SS]>" -y "<outcome>" -z "<impact>"\n'
+        '  xyz -b "<bucket>" -x "<YYYY-MM-DD HH:MM[:SS]>" -y "<outcome>" -z "<impact>" '
+        '-p "<p score>" -q "<q score>" -r "<r score>"\n'
     )
 
 
@@ -151,6 +152,27 @@ def parse_args(argv: Sequence[str]) -> tuple[dict[str, str | None], bool, bool, 
             flags["z"] = argv[idx]
             idx += 1
             continue
+        if arg == "-p":
+            idx += 1
+            if idx >= len(argv):
+                raise ValidationError("-p requires a p score (alignment)")
+            flags["p"] = argv[idx]
+            idx += 1
+            continue
+        if arg == "-q":
+            idx += 1
+            if idx >= len(argv):
+                raise ValidationError("-q requires a q score (impact)")
+            flags["q"] = argv[idx]
+            idx += 1
+            continue
+        if arg == "-r":
+            idx += 1
+            if idx >= len(argv):
+                raise ValidationError("-r requires an r score (embodiment)")
+            flags["r"] = argv[idx]
+            idx += 1
+            continue
         if arg == "-b":
             idx += 1
             if idx >= len(argv):
@@ -188,10 +210,12 @@ def main(argv: list[str] | None = None) -> int:
 
     orchestrator = Orchestrator()
 
-    cli_flags = {"b", "x", "y", "z"}
+    cli_flags = {"b", "x", "y", "z", "p", "q", "r"}
     if any(flag in flag_values for flag in cli_flags):
         missing = [
-            flag for flag in ("b", "x", "y", "z") if flag_values.get(flag) is None
+            flag
+            for flag in ("b", "x", "y", "z", "p", "q", "r")
+            if flag_values.get(flag) is None
         ]
         if missing:
             print(
@@ -202,7 +226,18 @@ def main(argv: list[str] | None = None) -> int:
         y_val = flag_values.get("y") or ""
         z_val = flag_values.get("z") or ""
         bucket_val = flag_values.get("b") or ""
-        return orchestrator.handle_structured_cli(bucket_val, x_val, y_val, z_val)
+        p_val = flag_values.get("p") or ""
+        q_val = flag_values.get("q") or ""
+        r_val = flag_values.get("r") or ""
+        return orchestrator.handle_structured_cli(
+            bucket_val,
+            x_val,
+            y_val,
+            z_val,
+            p_val,
+            q_val,
+            r_val,
+        )
 
     return orchestrator.run()
 
