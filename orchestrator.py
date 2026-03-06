@@ -7,11 +7,14 @@ import curses
 import json
 import os
 import shlex
+import shutil
 import subprocess
+import sys
 import tempfile
+import textwrap
 import time
 from pathlib import Path
-from datetime import date
+from datetime import date, datetime
 from typing import List, cast
 import re
 
@@ -205,6 +208,374 @@ class Orchestrator:
         self.state.events = updated
         self._prune_row_overrides()
         return 0
+
+    def list_upcoming_cli(self, bucket_flag: str, limit: int | None) -> int:
+        bucket_map = {
+            "-all": ALL_BUCKET,
+            "-per": "personal_development",
+            "-eco": "economic",
+            "-tng": "thing",
+        }
+        if bucket_flag not in bucket_map:
+            print("Invalid list filter. Use one of: -all, -per, -eco, -tng")
+            return 1
+        if limit is not None and limit < 0:
+            print("List count must be >= 0")
+            return 1
+
+        try:
+            events = self.calendar.load_events()
+        except StorageError as exc:
+            print(str(exc))
+            return 1
+
+        selected_bucket = bucket_map[bucket_flag]
+        indexed_events = self._events_with_ids(events)
+        upcoming = self._upcoming_events_with_ids(indexed_events)
+        if selected_bucket != ALL_BUCKET:
+            upcoming = [row for row in upcoming if row[1].bucket == selected_bucket]
+
+        if limit is not None:
+            upcoming = upcoming[:limit]
+
+        self._print_upcoming_list(upcoming, selected_bucket)
+        return 0
+
+    def add_via_editor_cli(self) -> int:
+        seed_event = Event(
+            bucket=DEFAULT_BUCKET,
+            jtbd=JTBD(
+                x=parse_datetime(f"{date.today().strftime('%Y-%m-%d')} {SEEDED_DEFAULT_TIME}"),
+                y="",
+                z="",
+            ),
+            nsm=NorthStarMetrics(p=0.0, q=0.0, r=0.0),
+        )
+        editor_cmd = os.environ.get("EDITOR", "vim")
+        ok, contents, error = self._launch_json_editor(
+            editor_cmd, _row_editor_seed(seed_event)
+        )
+        if not ok:
+            if error:
+                print(error)
+                return 1
+            return 0
+        if contents is None:
+            return 0
+
+        try:
+            updated_event = _parse_row_editor_json(contents, seed_event.bucket)
+        except (ValueError, ValidationError) as exc:
+            print(str(exc))
+            return 1
+
+        try:
+            existing = self.calendar.load_events()
+            _ = self.calendar.upsert_event(existing, updated_event)
+        except (ValidationError, StorageError) as exc:
+            print(str(exc))
+            return 1
+        return 0
+
+    def add_direct_cli(self, fields: dict[str, str]) -> int:
+        try:
+            bucket_result = self._resolve_bucket_arg(fields.get("bkt"))
+        except ValidationError as exc:
+            print(str(exc))
+            return 1
+
+        payload = {
+            "bucket": bucket_result,
+            "jtbd": {
+                "x": fields.get("x", ""),
+                "y": fields.get("y", ""),
+                "z": fields.get("z", ""),
+            },
+            "nsm": {
+                "p": fields.get("p", ""),
+                "q": fields.get("q", ""),
+                "r": fields.get("r", ""),
+            },
+        }
+
+        try:
+            event = normalize_event_payload(payload)
+            existing = self.calendar.load_events()
+            _ = self.calendar.upsert_event(existing, event)
+        except (ValidationError, StorageError) as exc:
+            print(str(exc))
+            return 1
+        return 0
+
+    def edit_by_id_cli(self, item_id: int) -> int:
+        if item_id <= 0:
+            print("ID must be >= 1")
+            return 1
+        try:
+            events = self.calendar.load_events()
+        except StorageError as exc:
+            print(str(exc))
+            return 1
+
+        indexed_events = self._events_with_ids(events)
+        original = self._event_by_id(indexed_events, item_id)
+        if original is None:
+            print(f"ID {item_id} not found in CSV")
+            return 1
+
+        editor_cmd = os.environ.get("EDITOR", "vim")
+        ok, contents, error = self._launch_json_editor(
+            editor_cmd, _row_editor_seed(original)
+        )
+        if not ok:
+            if error:
+                print(error)
+                return 1
+            return 0
+        if contents is None:
+            return 0
+
+        try:
+            updated_event = _parse_row_editor_json(contents, original.bucket)
+        except (ValueError, ValidationError) as exc:
+            print(str(exc))
+            return 1
+
+        try:
+            _ = self.calendar.upsert_event(
+                events, updated_event, replace_dt=(True, original)
+            )
+        except (ValidationError, StorageError) as exc:
+            print(str(exc))
+            return 1
+        return 0
+
+    def edit_by_id_direct_cli(
+        self, item_id: int, updates: dict[str, str]
+    ) -> int:
+        if item_id <= 0:
+            print("ID must be >= 1")
+            return 1
+        try:
+            events = self.calendar.load_events()
+        except StorageError as exc:
+            print(str(exc))
+            return 1
+
+        indexed_events = self._events_with_ids(events)
+        original = self._event_by_id(indexed_events, item_id)
+        if original is None:
+            print(f"ID {item_id} not found in CSV")
+            return 1
+
+        bucket_value = None
+        if "bkt" in updates:
+            try:
+                bucket_value = self._resolve_bucket_arg(updates.get("bkt"))
+            except ValidationError as exc:
+                print(str(exc))
+                return 1
+
+        x_value = None
+        if "x" in updates:
+            try:
+                x_value = parse_datetime(updates["x"])
+            except ValidationError as exc:
+                print(str(exc))
+                return 1
+
+        y_value = updates["y"] if "y" in updates else None
+        z_value = updates["z"] if "z" in updates else None
+
+        p_value = None
+        if "p" in updates:
+            try:
+                p_value = float(updates["p"])
+            except ValueError:
+                print("Metric 'p' must be numeric")
+                return 1
+
+        q_value = None
+        if "q" in updates:
+            try:
+                q_value = float(updates["q"])
+            except ValueError:
+                print("Metric 'q' must be numeric")
+                return 1
+
+        r_value = None
+        if "r" in updates:
+            try:
+                r_value = float(updates["r"])
+            except ValueError:
+                print("Metric 'r' must be numeric")
+                return 1
+
+        candidate = original.with_updated(
+            bucket=bucket_value,
+            x=x_value,
+            y=y_value,
+            z=z_value,
+            p=p_value,
+            q=q_value,
+            r=r_value,
+        )
+
+        try:
+            # Re-validate full payload after partial updates.
+            validated = normalize_event_payload(event_to_jsonable(candidate))
+            _ = self.calendar.upsert_event(
+                events, validated, replace_dt=(True, original)
+            )
+        except (ValidationError, StorageError) as exc:
+            print(str(exc))
+            return 1
+        return 0
+
+    def delete_by_id_cli(self, item_id: int) -> int:
+        if item_id <= 0:
+            print("ID must be >= 1")
+            return 1
+        try:
+            events = self.calendar.load_events()
+        except StorageError as exc:
+            print(str(exc))
+            return 1
+
+        indexed_events = self._events_with_ids(events)
+        target = self._event_by_id(indexed_events, item_id)
+        if target is None:
+            print(f"ID {item_id} not found in CSV")
+            return 1
+        try:
+            _ = self.calendar.delete_event(events, target)
+        except StorageError as exc:
+            print(str(exc))
+            return 1
+        return 0
+
+    @staticmethod
+    def _upcoming_events(events: List[Event]) -> List[Event]:
+        now = datetime.now()
+        upcoming = [ev for ev in events if ev.jtbd.x >= now]
+        upcoming.sort(key=lambda ev: ev.jtbd.x)
+        return upcoming
+
+    @staticmethod
+    def _events_with_ids(events: List[Event]) -> List[tuple[int, Event]]:
+        return [(idx, ev) for idx, ev in enumerate(events, start=1)]
+
+    @staticmethod
+    def _upcoming_events_with_ids(
+        indexed_events: List[tuple[int, Event]]
+    ) -> List[tuple[int, Event]]:
+        now = datetime.now()
+        upcoming = [(idx, ev) for idx, ev in indexed_events if ev.jtbd.x >= now]
+        upcoming.sort(key=lambda row: row[1].jtbd.x)
+        return upcoming
+
+    @staticmethod
+    def _event_by_id(
+        indexed_events: List[tuple[int, Event]], item_id: int
+    ) -> Event | None:
+        for idx, ev in indexed_events:
+            if idx == item_id:
+                return ev
+        return None
+
+    @staticmethod
+    def _resolve_bucket_arg(raw_bucket: str | None) -> BucketName:
+        if raw_bucket is None or raw_bucket.strip() == "":
+            return DEFAULT_BUCKET
+        candidate = raw_bucket.strip().lower()
+        bucket_map = {
+            "per": "personal_development",
+            "tng": "thing",
+            "eco": "economic",
+            "personal_development": "personal_development",
+            "thing": "thing",
+            "economic": "economic",
+        }
+        resolved = bucket_map.get(candidate)
+        if resolved is None:
+            raise ValidationError("Invalid -bkt value. Use per, tng, or eco")
+        return cast(BucketName, resolved)
+
+    @staticmethod
+    def _print_upcoming_list(
+        events: List[tuple[int, Event]], selected_bucket: str
+    ) -> None:
+        width = max(72, min(shutil.get_terminal_size(fallback=(100, 20)).columns, 140))
+        use_color = sys.stdout.isatty() and "NO_COLOR" not in os.environ
+
+        def tone(value: str, *, style: str = "text") -> str:
+            if not use_color:
+                return value
+            styles = {
+                "muted": "\033[90m",
+                "text": "\033[37m",
+                "strong": "\033[97m",
+            }
+            return f"{styles.get(style, styles['text'])}{value}\033[0m"
+
+        bucket_label = "all" if selected_bucket == ALL_BUCKET else selected_bucket
+        title = f"xyz upcoming items ({len(events)})  bucket: {bucket_label}"
+        print(tone(title, style="strong"))
+        print(tone("-" * min(len(title), width), style="muted"))
+
+        if not events:
+            print(tone("No upcoming items.", style="muted"))
+            return
+
+        line_indent = " " * 3
+        body_width = max(20, width)
+
+        for view_idx, (item_id, ev) in enumerate(events, start=1):
+            due = ev.jtbd.x.strftime(DATETIME_FMT)
+            print(tone(f"{line_indent}edit_id: {item_id}", style="muted"))
+
+            x_wrapper = textwrap.TextWrapper(
+                width=body_width,
+                initial_indent=f"{view_idx}. x: ",
+                subsequent_indent=f"{line_indent}{' ' * 3}",
+                break_long_words=False,
+            )
+            x_lines = x_wrapper.wrap(due) or [f"{view_idx}. x:"]
+
+            y_wrapper = textwrap.TextWrapper(
+                width=body_width,
+                initial_indent=f"{line_indent}y: ",
+                subsequent_indent=f"{line_indent}{' ' * 3}",
+                break_long_words=False,
+            )
+            z_wrapper = textwrap.TextWrapper(
+                width=body_width,
+                initial_indent=f"{line_indent}z: ",
+                subsequent_indent=f"{line_indent}{' ' * 3}",
+                break_long_words=False,
+            )
+            y_lines = y_wrapper.wrap(ev.jtbd.y) or [f"{line_indent}y:"]
+            z_lines = z_wrapper.wrap(ev.jtbd.z) or [f"{line_indent}z:"]
+            avg = (ev.nsm.p + ev.nsm.q + ev.nsm.r) / 3.0
+            score_line = (
+                f"{line_indent}p: {_format_metric_value(ev.nsm.p)}  "
+                f"q: {_format_metric_value(ev.nsm.q)}  "
+                f"r: {_format_metric_value(ev.nsm.r)}  "
+                f"avg: {_format_metric_value(avg)}"
+            )
+            bucket_line = f"{line_indent}bucket: {ev.bucket}"
+
+            for line in x_lines:
+                print(tone(line, style="text"))
+            for line in y_lines:
+                print(tone(line, style="text"))
+            for line in z_lines:
+                print(tone(line, style="text"))
+            print(tone(score_line, style="muted"))
+            print(tone(bucket_line, style="muted"))
+
+            if view_idx < len(events):
+                print(tone("-" * min(width, 36), style="muted"))
 
     def _run_curses(self) -> int:
         try:

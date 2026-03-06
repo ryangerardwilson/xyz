@@ -101,20 +101,80 @@ def _print_help() -> None:
     print(
         "xyz - terminal-native keyboard-first task tracker\n\n"
         "Usage:\n"
-        "  xyz              Launch curses UI\n"
+        "  xyz tui          Launch curses UI\n"
         "  xyz -h           Show this help\n"
+        "  xyz ?            Show x/y/z/p/q/r meanings\n"
         "  xyz -v           Show installed version\n"
         "  xyz -u           Reinstall latest release if newer exists\n"
-        '  xyz -b "<bucket>" -x "<YYYY-MM-DD HH:MM[:SS]>" -y "<outcome>" -z "<impact>" '
-        '-p "<p score>" -q "<q score>" -r "<r score>"\n'
+        "  xyz ls -all|-per|-eco|-tng [count]   List upcoming items\n"
+        "  xyz a                                 Add item in $EDITOR\n"
+        '  xyz a -x "" -y "" -z "" -p "" -q "" -r "" [-bkt per|tng|eco]\n'
+        "  xyz e -id <csv_id>                    Edit by stable CSV id in $EDITOR\n"
+        '  xyz e -id <csv_id> -x "" -y "" -p "" [-bkt per|tng|eco]\n'
+        "  xyz d -id <csv_id>                    Delete by stable CSV id\n"
     )
 
 
-def parse_args(argv: Sequence[str]) -> tuple[dict[str, str | None], bool, bool, bool]:
-    flags: dict[str, str | None] = {}
+def _print_field_meanings() -> None:
+    print(
+        "Idea:\n"
+        "  \"When X happens, I want Y outcome, so that I can drive Z impact\"\n\n"
+        "XYZ Fields:\n"
+        "  x: target trigger datetime (when outcome should be checked)\n"
+        "  y: desired progress/outcome\n"
+        "  z: why it matters / impact\n\n"
+        "PQR Scores (0-10):\n"
+        "  p: Jesus' will alignment\n"
+        "     How aligned was this with Jesus-like values: love, truth, humility, stewardship?\n"
+        "  q: outward impact\n"
+        "     What good did it create in the world around you: work, family, service, finances?\n"
+        "  r: embodied practice\n"
+        "     Did I honour my body and nervous system while doing it, or did I sacrifice them?\n"
+    )
+
+
+def _parse_positive_int(raw: str, label: str) -> int:
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValidationError(f"{label} must be an integer") from exc
+    if value <= 0:
+        raise ValidationError(f"{label} must be >= 1")
+    return value
+
+
+def _parse_command_flags(
+    args: Sequence[str], *, allowed: set[str]
+) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    idx = 0
+    while idx < len(args):
+        key = args[idx]
+        if not key.startswith("-"):
+            raise ValidationError(f"Unexpected argument '{key}'")
+        if key not in allowed:
+            raise ValidationError(f"Unknown flag '{key}'")
+        idx += 1
+        if idx >= len(args):
+            raise ValidationError(f"{key} requires a value")
+        parsed[key] = args[idx]
+        idx += 1
+    return parsed
+
+
+def parse_args(
+    argv: Sequence[str],
+) -> tuple[bool, bool, bool, str | None, list[str]]:
     show_version = False
     show_help = False
     do_upgrade = False
+    command: str | None = None
+    command_args: list[str] = []
+
+    if argv and argv[0] in {"?", "tui", "ls", "a", "e", "d"}:
+        command = argv[0]
+        command_args = list(argv[1:])
+        return show_version, show_help, do_upgrade, command, command_args
 
     idx = 0
     while idx < len(argv):
@@ -131,57 +191,8 @@ def parse_args(argv: Sequence[str]) -> tuple[dict[str, str | None], bool, bool, 
             do_upgrade = True
             idx += 1
             continue
-        if arg == "-x":
-            idx += 1
-            if idx >= len(argv):
-                raise ValidationError("-x requires a datetime argument")
-            flags["x"] = argv[idx]
-            idx += 1
-            continue
-        if arg == "-y":
-            idx += 1
-            if idx >= len(argv):
-                raise ValidationError("-y requires an outcome argument")
-            flags["y"] = argv[idx]
-            idx += 1
-            continue
-        if arg == "-z":
-            idx += 1
-            if idx >= len(argv):
-                raise ValidationError("-z requires an impact argument")
-            flags["z"] = argv[idx]
-            idx += 1
-            continue
-        if arg == "-p":
-            idx += 1
-            if idx >= len(argv):
-                raise ValidationError("-p requires a p score (alignment)")
-            flags["p"] = argv[idx]
-            idx += 1
-            continue
-        if arg == "-q":
-            idx += 1
-            if idx >= len(argv):
-                raise ValidationError("-q requires a q score (impact)")
-            flags["q"] = argv[idx]
-            idx += 1
-            continue
-        if arg == "-r":
-            idx += 1
-            if idx >= len(argv):
-                raise ValidationError("-r requires an r score (embodiment)")
-            flags["r"] = argv[idx]
-            idx += 1
-            continue
-        if arg == "-b":
-            idx += 1
-            if idx >= len(argv):
-                raise ValidationError("-b requires a bucket argument")
-            flags["b"] = argv[idx]
-            idx += 1
-            continue
         raise ValidationError(f"Unknown flag '{arg}'")
-    return flags, show_version, show_help, do_upgrade
+    return show_version, show_help, do_upgrade, command, command_args
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -192,7 +203,13 @@ def main(argv: list[str] | None = None) -> int:
         argv = sys.argv[1:]
 
     try:
-        flag_values, show_version, show_help, do_upgrade = parse_args(argv)
+        (
+            show_version,
+            show_help,
+            do_upgrade,
+            command,
+            command_args,
+        ) = parse_args(argv)
     except ValidationError as exc:
         print(str(exc))
         return 1
@@ -209,37 +226,98 @@ def main(argv: list[str] | None = None) -> int:
         return _run_upgrade()
 
     orchestrator = Orchestrator()
-
-    cli_flags = {"b", "x", "y", "z", "p", "q", "r"}
-    if any(flag in flag_values for flag in cli_flags):
-        missing = [
-            flag
-            for flag in ("b", "x", "y", "z", "p", "q", "r")
-            if flag_values.get(flag) is None
-        ]
-        if missing:
-            print(
-                f"Missing required flag(s): {', '.join(f'-{flag}' for flag in missing)}"
+    try:
+        if command == "?":
+            if command_args:
+                print("Usage: xyz ?")
+                return 1
+            _print_field_meanings()
+            return 0
+        if command == "tui":
+            if command_args:
+                print("Usage: xyz tui")
+                return 1
+            return orchestrator.run()
+        if command == "ls":
+            bucket = "-all"
+            count: int | None = None
+            if command_args:
+                first = command_args[0]
+                if first in {"-all", "-per", "-eco", "-tng"}:
+                    bucket = first
+                    if len(command_args) > 1:
+                        count = _parse_positive_int(command_args[1], "List count")
+                    if len(command_args) > 2:
+                        print("Usage: xyz ls -all|-per|-eco|-tng [count]")
+                        return 1
+                else:
+                    count = _parse_positive_int(first, "List count")
+                    if len(command_args) > 1:
+                        print("Usage: xyz ls -all|-per|-eco|-tng [count]")
+                        return 1
+            return orchestrator.list_upcoming_cli(bucket, count)
+        if command == "a":
+            if not command_args:
+                return orchestrator.add_via_editor_cli()
+            flags = _parse_command_flags(
+                command_args, allowed={"-x", "-y", "-z", "-p", "-q", "-r", "-bkt"}
             )
-            return 1
-        x_val = flag_values.get("x") or ""
-        y_val = flag_values.get("y") or ""
-        z_val = flag_values.get("z") or ""
-        bucket_val = flag_values.get("b") or ""
-        p_val = flag_values.get("p") or ""
-        q_val = flag_values.get("q") or ""
-        r_val = flag_values.get("r") or ""
-        return orchestrator.handle_structured_cli(
-            bucket_val,
-            x_val,
-            y_val,
-            z_val,
-            p_val,
-            q_val,
-            r_val,
-        )
+            required = {"-x", "-y", "-z", "-p", "-q", "-r"}
+            missing = [flag for flag in required if flag not in flags]
+            if missing:
+                missing.sort()
+                print(
+                    "Missing required flag(s): "
+                    + ", ".join(missing)
+                    + " for direct add"
+                )
+                return 1
+            return orchestrator.add_direct_cli(
+                {
+                    "x": flags["-x"],
+                    "y": flags["-y"],
+                    "z": flags["-z"],
+                    "p": flags["-p"],
+                    "q": flags["-q"],
+                    "r": flags["-r"],
+                    "bkt": flags.get("-bkt", ""),
+                }
+            )
+        if command == "e":
+            if not command_args:
+                print("Usage: xyz e -id <csv_id> | xyz e -id <csv_id> -x ...")
+                return 1
+            flags = _parse_command_flags(
+                command_args,
+                allowed={"-id", "-x", "-y", "-z", "-p", "-q", "-r", "-bkt"},
+            )
+            updates: dict[str, str] = {}
+            for key, value in flags.items():
+                clean_key = key.lstrip("-")
+                updates[clean_key] = value
 
-    return orchestrator.run()
+            if "id" not in updates:
+                print("Missing required flag: -id")
+                return 1
+            item_id = _parse_positive_int(updates["id"], "ID")
+            del updates["id"]
+
+            if not updates:
+                return orchestrator.edit_by_id_cli(item_id)
+            return orchestrator.edit_by_id_direct_cli(item_id, updates)
+        if command == "d":
+            flags = _parse_command_flags(command_args, allowed={"-id"})
+            if "-id" not in flags:
+                print("Usage: xyz d -id <csv_id>")
+                return 1
+            item_id = _parse_positive_int(flags["-id"], "ID")
+            return orchestrator.delete_by_id_cli(item_id)
+    except ValidationError as exc:
+        print(str(exc))
+        return 1
+
+    _print_help()
+    return 0
 
 
 if __name__ == "__main__":

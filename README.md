@@ -60,7 +60,7 @@ You can also download the archive directly from the releases page and run
 ### From source
 
 If you’d rather run directly from the repo (handy for development or non-Linux
-hosts), follow the requirements below and execute `python main.py` like before.
+hosts), follow the requirements below and use the `python main.py ...` commands.
 
 ---
 
@@ -70,7 +70,7 @@ hosts), follow the requirements below and execute `python main.py` like before.
 - **Buckets** (`personal_development`, `thing`, `economic`) to segment work; press `Tab` in Agenda to cycle filters or show all
 - **Single-key view toggle (`a`)** to flip between agenda and month views instantly
 - **Editing shortcuts** — `i` for quick single-field tweaks, `I` to edit the full task payload as pretty JSON in `$EDITOR`
-- **Structured CLI** with explicit `-x/-y/-z/-p/-q/-r` flags for scripting tasks deterministically
+- **CLI-first workflow** with `ls`, `a`, `e`, and `d` commands plus stable `edit_id` references
 - **North Star metrics** (`p`, `q`, `r`) capturing Jesus' will alignment, outward impact, and embodied practice alongside JTBD fields
 - **Quick delete** by double–tapping `d` (`dd`) in Agenda or the month’s task list
 - **Month/Year jumping** inside the month view with `Ctrl+h/l` and `Ctrl+j/k`
@@ -122,8 +122,9 @@ surfaces which jobs genuinely advance the Kingdom you’re stewarding.
 Install dependencies (none besides stdlib) and run from the repo root:
 
 ```bash
-python main.py                       # launches curses UI (TUI)
-python main.py -x "2026-01-26 00:00" -y "learned to cook pasta" -z "throw a nice party" -p 6 -q 7 -r 5
+python main.py -h
+python main.py tui
+python main.py ls -all 5
 ```
 
 ---
@@ -154,29 +155,43 @@ gracefully if fields are missing.
 
 ### Curses UI
 
-Run `python main.py` and use the shortcuts below. Tasks are loaded from the CSV
+Run `python main.py tui` and use the shortcuts below. Tasks are loaded from the CSV
 path in config. Editing a task writes it as JSON to a temp file, opens
 `$EDITOR`, and saves changes back to CSV after validation.
 
-### Structured CLI
+### CLI
 
-Use the deterministic flags whenever you want to script or quickly log a task:
+List upcoming items by due date (ascending):
 
 ```
-python main.py -b personal_development -x "2026-01-26 00:00" -y "learned to cook pasta" -z "throw a nice party" -p 7.5 -q 6 -r 8
-python main.py -b economic -x "2026-02-01 09:00" -y "ship launch blog" -z "prep launch recap" -p 9 -q 9.5 -r 7
+python main.py ls -all 5
+python main.py ls -per 10
+python main.py ls -eco 3
 ```
 
-- `-b` (required): bucket (`personal_development`, `thing`, or `economic`).
-- `-x` (required): trigger timestamp (`YYYY-MM-DD HH:MM[:SS]`). Seconds are optional.
-- `-y` (required): outcome text.
-- `-z` (required): impact/why-it-matters text.
-- `-p` (required): Jesus' will alignment score (0–10, decimals allowed).
-- `-q` (required): outward impact score (0–10, decimals allowed).
-- `-r` (required): embodied practice score (0–10, decimals allowed).
+Create via editor:
 
-Successful commands print the stored JSON payload. Validation/storage failures
-return exit code `1` with a descriptive error.
+```bash
+python main.py a
+```
+
+Create directly (no editor):
+
+```bash
+python main.py a -x "2026-01-26 00:00" -y "learned to cook pasta" -z "throw a nice party" -p "6" -q "7" -r "5" -bkt per
+```
+
+Edit/delete by stable CSV id (`edit_id` in `ls` output):
+
+```bash
+python main.py e -id 12
+python main.py e -id 12 -y "updated outcome" -p "8.5" -bkt eco
+python main.py d -id 12
+```
+
+- `e` and `d` are stable by `-id` and do not depend on the visible `ls` serial number.
+- `-bkt` supports `per`, `tng`, `eco`.
+- `python main.py` and `python main.py -h` print command help.
 
 ---
 
@@ -236,7 +251,8 @@ All modules live in a flat repo structure for now.
 
 ## Development
 
-- Run: `python main.py`
+- Run TUI: `python main.py tui`
+- CLI help: `python main.py -h`
 - Tests: invoke your preferred runner / add `pytest` as needed (none included yet)
 - Python 3.11+
 - Pure stdlib dependencies (`curses`, `csv`, `json`, etc.)
