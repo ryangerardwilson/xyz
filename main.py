@@ -116,6 +116,13 @@ def _print_help() -> None:
 
 
 def _print_field_meanings() -> None:
+    use_color = sys.stdout.isatty() and "NO_COLOR" not in os.environ
+
+    def muted(text: str) -> str:
+        if not use_color:
+            return text
+        return f"\033[90m{text}\033[0m"
+
     print(
         "Idea:\n"
         "  \"When X happens, I want Y outcome, so that I can drive Z impact\"\n\n"
@@ -125,11 +132,11 @@ def _print_field_meanings() -> None:
         "  z: why it matters / impact\n\n"
         "PQR Scores (0-10):\n"
         "  p: Jesus' will alignment\n"
-        "     How aligned was this with Jesus-like values: love, truth, humility, stewardship?\n"
+        f"     {muted('How aligned was this with Jesus-like values: love, truth, humility, stewardship?')}\n"
         "  q: outward impact\n"
-        "     What good did it create in the world around you: work, family, service, finances?\n"
+        f"     {muted('What good did it create in the world around you: work, family, service, finances?')}\n"
         "  r: embodied practice\n"
-        "     Did I honour my body and nervous system while doing it, or did I sacrifice them?\n"
+        f"     {muted('Did I honour my body and nervous system while doing it, or did I sacrifice them?')}\n"
     )
 
 
