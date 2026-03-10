@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import sys
 from typing import Sequence
@@ -12,6 +13,7 @@ from urllib.request import Request, urlopen
 
 from models import ValidationError
 from orchestrator import Orchestrator
+from config import config_file_path
 
 try:
     from _version import __version__
@@ -97,6 +99,17 @@ def _run_upgrade() -> int:
     return bash_rc
 
 
+def _open_config_in_editor() -> int:
+    cfg_path = config_file_path()
+    if not cfg_path.exists():
+        cfg_path.write_text("{}\n", encoding="utf-8")
+    editor = (os.environ.get("VISUAL") or os.environ.get("EDITOR") or "vim").strip()
+    editor_cmd = shlex.split(editor) if editor else ["vim"]
+    if not editor_cmd:
+        editor_cmd = ["vim"]
+    return subprocess.run([*editor_cmd, str(cfg_path)], check=False).returncode
+
+
 def _print_help() -> None:
     print(
         "xyz - terminal-native keyboard-first task tracker\n\n"
@@ -104,6 +117,7 @@ def _print_help() -> None:
         "  xyz tui          Launch curses UI\n"
         "  xyz -h           Show this help\n"
         "  xyz ?            Show x/y/z/p/q/r meanings\n"
+        "  xyz conf         Open config in $VISUAL/$EDITOR\n"
         "  xyz -v           Show installed version\n"
         "  xyz -u           Reinstall latest release if newer exists\n"
         "  xyz ls -all|-per|-eco|-tng [count]   List upcoming items\n"
@@ -178,7 +192,7 @@ def parse_args(
     command: str | None = None
     command_args: list[str] = []
 
-    if argv and argv[0] in {"?", "tui", "ls", "a", "e", "d"}:
+    if argv and argv[0] in {"?", "tui", "ls", "a", "e", "d", "conf"}:
         command = argv[0]
         command_args = list(argv[1:])
         return show_version, show_help, do_upgrade, command, command_args
@@ -240,6 +254,11 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             _print_field_meanings()
             return 0
+        if command == "conf":
+            if command_args:
+                print("Usage: xyz conf")
+                return 1
+            return _open_config_in_editor()
         if command == "tui":
             if command_args:
                 print("Usage: xyz tui")
