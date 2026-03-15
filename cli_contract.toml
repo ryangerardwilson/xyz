@@ -1,0 +1,6 @@
+[app]
+name = "xyz"
+repo = "ryangerardwilson/xyz"
+install_strategy = "standalone-binary"
+release_asset = "xyz-linux-x64.tar.gz"
+install_test_path = "test_install_contract.py"
