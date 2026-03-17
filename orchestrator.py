@@ -506,25 +506,14 @@ class Orchestrator:
         events: List[tuple[int, Event]], selected_bucket: str
     ) -> None:
         width = max(72, min(shutil.get_terminal_size(fallback=(100, 20)).columns, 140))
-        use_color = sys.stdout.isatty() and "NO_COLOR" not in os.environ
-
-        def tone(value: str, *, style: str = "text") -> str:
-            if not use_color:
-                return value
-            styles = {
-                "muted": "\033[90m",
-                "text": "\033[37m",
-                "strong": "\033[97m",
-            }
-            return f"{styles.get(style, styles['text'])}{value}\033[0m"
 
         bucket_label = "all" if selected_bucket == ALL_BUCKET else selected_bucket
         title = f"xyz upcoming items ({len(events)})  bucket: {bucket_label}"
-        print(tone(title, style="strong"))
-        print(tone("-" * min(len(title), width), style="muted"))
+        print(title)
+        print("-" * min(len(title), width))
 
         if not events:
-            print(tone("No upcoming items.", style="muted"))
+            print("No upcoming items.")
             return
 
         line_indent = " " * 3
@@ -532,7 +521,7 @@ class Orchestrator:
 
         for view_idx, (item_id, ev) in enumerate(events, start=1):
             due = ev.jtbd.x.strftime(DATETIME_FMT)
-            print(tone(f"{line_indent}edit_id: {item_id}", style="muted"))
+            print(f"{line_indent}edit_id: {item_id}")
 
             x_wrapper = textwrap.TextWrapper(
                 width=body_width,
@@ -566,16 +555,16 @@ class Orchestrator:
             bucket_line = f"{line_indent}bucket: {ev.bucket}"
 
             for line in x_lines:
-                print(tone(line, style="text"))
+                print(line)
             for line in y_lines:
-                print(tone(line, style="text"))
+                print(line)
             for line in z_lines:
-                print(tone(line, style="text"))
-            print(tone(score_line, style="muted"))
-            print(tone(bucket_line, style="muted"))
+                print(line)
+            print(score_line)
+            print(bucket_line)
 
             if view_idx < len(events):
-                print(tone("-" * min(width, 36), style="muted"))
+                print("-" * min(width, 36))
 
     def _run_curses(self) -> int:
         try:
