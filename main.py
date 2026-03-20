@@ -8,14 +8,15 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from models import ValidationError
-from orchestrator import Orchestrator
-from config import config_file_path
 from rgw_cli_contract import AppSpec, resolve_install_script_path, run_app
 
 from _version import __version__
 
 INSTALL_SCRIPT = resolve_install_script_path(__file__)
+CONFIG_BOOTSTRAP_TEXT = """{
+  "data_csv_path": ""
+}
+"""
 HELP_TEXT = """xyz
 
 flags:
@@ -41,6 +42,16 @@ features:
   xyz e -id 3
   xyz d -id 3
 """
+
+
+class UsageError(ValueError):
+    """Raised for invalid CLI usage."""
+
+
+def _config_path() -> Path:
+    from config import config_file_path
+
+    return config_file_path()
 
 
 def _print_help() -> None:
@@ -69,9 +80,9 @@ def _parse_positive_int(raw: str, label: str) -> int:
     try:
         value = int(raw)
     except ValueError as exc:
-        raise ValidationError(f"{label} must be an integer") from exc
+        raise UsageError(f"{label} must be an integer") from exc
     if value <= 0:
-        raise ValidationError(f"{label} must be >= 1")
+        raise UsageError(f"{label} must be >= 1")
     return value
 
 
@@ -83,12 +94,12 @@ def _parse_command_flags(
     while idx < len(args):
         key = args[idx]
         if not key.startswith("-"):
-            raise ValidationError(f"Unexpected argument '{key}'")
+            raise UsageError(f"Unexpected argument '{key}'")
         if key not in allowed:
-            raise ValidationError(f"Unknown flag '{key}'")
+            raise UsageError(f"Unknown flag '{key}'")
         idx += 1
         if idx >= len(args):
-            raise ValidationError(f"{key} requires a value")
+            raise UsageError(f"{key} requires a value")
         parsed[key] = args[idx]
         idx += 1
     return parsed
@@ -108,21 +119,23 @@ def parse_args(
     idx = 0
     while idx < len(argv):
         arg = argv[idx]
-        raise ValidationError(f"Unknown flag '{arg}'")
+        raise UsageError(f"Unknown flag '{arg}'")
     return command, command_args
 
 
 def _dispatch(argv: list[str]) -> int:
+    from models import ValidationError
+    from orchestrator import Orchestrator
+
     # Make ESC detection snappy inside curses.
     os.environ.setdefault("ESCDELAY", "25")
 
     try:
         command, command_args = parse_args(argv)
-    except ValidationError as exc:
+    except UsageError as exc:
         print(str(exc))
         return 1
 
-    orchestrator = Orchestrator()
     try:
         if command == "?":
             if command_args:
@@ -131,10 +144,9 @@ def _dispatch(argv: list[str]) -> int:
             _print_field_meanings()
             return 0
         if command == "conf":
-            if command_args:
-                print("Usage: xyz conf")
-                return 1
-            return _open_config_in_editor()
+            print("Usage: xyz conf")
+            return 1
+        orchestrator = Orchestrator()
         if command == "tui":
             if command_args:
                 print("Usage: xyz tui")
@@ -228,7 +240,8 @@ APP_SPEC = AppSpec(
     help_text=HELP_TEXT,
     install_script_path=INSTALL_SCRIPT,
     no_args_mode="help",
-    config_path_factory=config_file_path,
+    config_path_factory=_config_path,
+    config_bootstrap_text=CONFIG_BOOTSTRAP_TEXT,
 )
 
 

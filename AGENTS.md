@@ -19,18 +19,19 @@ This repository is a flat Python project centered on a terminal UI task tracker.
 - `python main.py -b personal_development -x "2026-01-26 00:00" -y "..." -z "..." -p 7 -q 8 -r 6`: add an entry non-interactively.
 - `python main.py -v`: print version.
 - `python main.py -u`: trigger upgrade flow via installer script.
-- `bash install.sh --version`: inspect installer/release version behavior.
+- `python -m pytest`: run the committed contract regression tests.
+- `bash install.sh -v`: inspect installer/release version behavior.
 
 ## Coding Style & Naming Conventions
 - Target Python 3.11+; use 4-space indentation and PEP 8 defaults.
 - Prefer type hints (`str | None`, `list[str]`) and small, single-purpose functions.
 - Use `snake_case` for functions/variables/modules, `PascalCase` for classes, and `UPPER_SNAKE_CASE` for constants.
-- Keep modules stdlib-first; this project currently has no required runtime third-party dependencies.
+- Keep modules stdlib-first; the only required source-checkout dependency is `rgw-cli-contract`.
 
 ## Testing Guidelines
-There is no committed automated test suite yet.
-- Add tests with `pytest` under `tests/` using names like `test_<module>.py`.
-- Prioritize coverage for CLI argument parsing, CSV persistence, validation, and state transitions.
+This repo ships committed `pytest` contract tests at the project root.
+- Keep contract regressions in `test_*.py` files so `./push_release_upgrade.sh` picks them up.
+- Prioritize coverage for CLI argument parsing, config editing, version/upgrade plumbing, CSV persistence, validation, and state transitions.
 - For UI-heavy changes, include manual verification steps in PRs (key paths exercised, expected behavior).
 
 ## Commit & Pull Request Guidelines

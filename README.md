@@ -43,24 +43,34 @@ any shell.
 
 Installer flags of note:
 
-- `--version <x.y.z>` or `-v <x.y.z>`: install a specific tagged release (`v0.3.0`, etc.).
-- `--version` (no argument): print the latest available release version without installing.
-- `--upgrade`: reinstall only if GitHub has a newer release than your current local version.
-- `--binary /path/to/xyz-linux-x64.tar.gz`: install from a previously downloaded archive.
-- `--no-modify-path`: skip auto-updating shell config files; the script will print the PATH export you should add manually.
+- `-v <x.y.z>` or `--version <x.y.z>`: install a specific tagged release (`v0.3.0`, etc.).
+- `-v` with no argument: print the latest available release version without installing.
+- `-u` or `--upgrade`: reinstall only if GitHub has a newer release than your current local version.
+- `-b /path/to/xyz` or `--binary /path/to/xyz`: install from a previously extracted local binary.
+- `-n` or `--no-modify-path`: skip auto-updating shell config files; the script will print the PATH export you should add manually.
 
 Once installed, the binary itself also supports:
 
+- `xyz -h` to show help
 - `xyz -v` to print the installed version
 - `xyz -u` to reinstall via the latest installer script if a newer release exists
+- `xyz conf` to open the user config in your editor
 
-You can also download the archive directly from the releases page and run
-`install.sh --binary` if you prefer.
+If you want an offline install, extract the release archive first and then pass
+the local `xyz` binary to `install.sh -b`.
 
 ### From source
 
 If you’d rather run directly from the repo (handy for development or non-Linux
-hosts), follow the requirements below and use the `python main.py ...` commands.
+hosts), install the source dependencies first:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt pytest
+```
+
+After that, use either the installed command shape (`xyz ...`) or the source
+entrypoint (`.venv/bin/python main.py ...`).
 
 ---
 
@@ -119,12 +129,14 @@ surfaces which jobs genuinely advance the Kingdom you’re stewarding.
 - Python 3.11+
 - A Unix-y terminal with `curses`
 
-Install dependencies (none besides stdlib) and run from the repo root:
+Once dependencies are installed, these are the canonical command paths:
 
 ```bash
-python main.py -h
-python main.py tui
-python main.py ls -all 5
+xyz -h
+xyz -v
+xyz conf
+xyz tui
+xyz ls -all 5
 ```
 
 ---
@@ -133,6 +145,8 @@ python main.py ls -all 5
 
 `xyz` looks for `$XDG_CONFIG_HOME/xyz/config.json` (fallback
 `~/.config/xyz/config.json`). Trailing commas are tolerated.
+
+Use `xyz conf` to create or open that file in `$VISUAL`, `$EDITOR`, or `vim`.
 
 Example config:
 
@@ -155,7 +169,7 @@ gracefully if fields are missing.
 
 ### Curses UI
 
-Run `python main.py tui` and use the shortcuts below. Tasks are loaded from the CSV
+Run `xyz tui` and use the shortcuts below. Tasks are loaded from the CSV
 path in config. Editing a task writes it as JSON to a temp file, opens
 `$EDITOR`, and saves changes back to CSV after validation.
 
@@ -164,34 +178,34 @@ path in config. Editing a task writes it as JSON to a temp file, opens
 List upcoming items by due date (ascending):
 
 ```
-python main.py ls -all 5
-python main.py ls -per 10
-python main.py ls -eco 3
+xyz ls -all 5
+xyz ls -per 10
+xyz ls -eco 3
 ```
 
 Create via editor:
 
 ```bash
-python main.py a
+xyz a
 ```
 
 Create directly (no editor):
 
 ```bash
-python main.py a -x "2026-01-26 00:00" -y "learned to cook pasta" -z "throw a nice party" -p "6" -q "7" -r "5" -bkt per
+xyz a -x "2026-01-26 00:00" -y "learned to cook pasta" -z "throw a nice party" -p "6" -q "7" -r "5" -bkt per
 ```
 
 Edit/delete by stable CSV id (`edit_id` in `ls` output):
 
 ```bash
-python main.py e -id 12
-python main.py e -id 12 -y "updated outcome" -p "8.5" -bkt eco
-python main.py d -id 12
+xyz e -id 12
+xyz e -id 12 -y "updated outcome" -p "8.5" -bkt eco
+xyz d -id 12
 ```
 
 - `e` and `d` are stable by `-id` and do not depend on the visible `ls` serial number.
 - `-bkt` supports `per`, `tng`, `eco`.
-- `python main.py` and `python main.py -h` print command help.
+- `xyz` and `xyz -h` print the same command help.
 
 ---
 
@@ -251,11 +265,12 @@ All modules live in a flat repo structure for now.
 
 ## Development
 
-- Run TUI: `python main.py tui`
-- CLI help: `python main.py -h`
-- Tests: invoke your preferred runner / add `pytest` as needed (none included yet)
+- Run TUI: `.venv/bin/python main.py tui`
+- CLI help: `.venv/bin/python main.py -h`
+- Tests: `.venv/bin/python -m pytest`
 - Python 3.11+
-- Pure stdlib dependencies (`curses`, `csv`, `json`, etc.)
+- Source checkout dependency: `rgw-cli-contract==0.1.2`
+- App logic remains stdlib-first (`curses`, `csv`, `json`, etc.)
 
 Feel free to open issues or PRs with new view ideas (week/day), ICS export
 support, or other workflow improvements for xyz.
