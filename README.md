@@ -36,10 +36,15 @@ to install the latest release is via the helper script:
 curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/xyz/main/install.sh | bash
 ```
 
+Manually add this to `~/.bashrc`, then reload your shell:
+
+```bash
+export PATH="$HOME/.xyz/bin:$PATH"
+source ~/.bashrc
+```
+
 The script downloads the `xyz-linux-x64.tar.gz` artifact, extracts it into
-`~/.xyz/app`, and drops a shim in `~/.xyz/bin`. It will attempt to add that
-directory to your `PATH` (unless you opt out) so you can just run `xyz` from
-any shell.
+`~/.xyz/app`, and drops a shim in `~/.xyz/bin`.
 
 Installer flags of note:
 
@@ -47,7 +52,7 @@ Installer flags of note:
 - `-v` with no argument: print the latest available release version without installing.
 - `-u` or `--upgrade`: reinstall only if GitHub has a newer release than your current local version.
 - `-b /path/to/xyz` or `--binary /path/to/xyz`: install from a previously extracted local binary.
-- `-n` or `--no-modify-path`: skip auto-updating shell config files; the script will print the PATH export you should add manually.
+- `-n` or `--no-modify-path`: compatibility no-op alias; the installer never edits shell config files automatically.
 
 Once installed, the binary itself also supports:
 
