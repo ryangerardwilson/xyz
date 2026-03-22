@@ -63,6 +63,7 @@ jobs:
                echo "__version__ = \"${VERSION}\"" > _version.py
                 "$PYBIN" -m PyInstaller --clean --onedir --name xyz \
                  main.py
+              "$PYBIN" .github/scripts/clear-execstack.py dist/xyz
                 cp install.sh dist/xyz/
                 tar -C dist -czf xyz-linux-x64.tar.gz xyz
 
