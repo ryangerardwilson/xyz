@@ -36,15 +36,17 @@ to install the latest release is via the helper script:
 curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/xyz/main/install.sh | bash
 ```
 
-Manually add this to `~/.bashrc`, then reload your shell:
+If `~/.local/bin` is not already on your `PATH`, add it once to `~/.bashrc`
+and reload your shell:
 
 ```bash
-export PATH="$HOME/.xyz/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 source ~/.bashrc
 ```
 
 The script downloads the `xyz-linux-x64.tar.gz` artifact, extracts it into
-`~/.xyz/app`, and drops a shim in `~/.xyz/bin`.
+`~/.xyz/app`, keeps the internal launcher at `~/.xyz/bin/xyz`, and publishes
+the user-facing command at `~/.local/bin/xyz`.
 
 Installer flags of note:
 
